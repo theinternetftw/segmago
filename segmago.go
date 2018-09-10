@@ -32,27 +32,20 @@ func NewStateForZEXDOC(cart []byte) Emulator {
 
 	// changes for ZEXDOC:
 
-	newRom := make([]byte, 0x100)
-	newRom = append(newRom, state.Mem.rom...)
-	newRom[5] = 0xc9 // ret
-	newRom[6] = 0xfe // ret
-	newRom[7] = 0xdf // ret
-	state.Mem.rom = newRom
-	state.Mem.Page1Bank = 1
-	state.Mem.Page2Bank = 2
 	state.CPU.PC = 0x0100
 	state.CPU.SP = 0xdffe
-	RAM := make([]byte, 0x8000)
+
+	RAM := make([]byte, 0x10000)
+	copy(RAM[0x100:], cart)
+	RAM[5] = 0xc9 // ret
+	RAM[6] = 0xfe // sp
+	RAM[7] = 0xdf // sp
+
 	state.CPU.Read = func(addr uint16) byte {
-		if addr < 0x8000 {
-			return state.Mem.rom[addr]
-		}
-		return RAM[addr-0x8000]
+		return RAM[addr]
 	}
 	state.CPU.Write = func(addr uint16, val byte) {
-		if addr >= 0x8000 {
-			RAM[addr-0x8000] = val
-		}
+		RAM[addr] = val
 	}
 
 	return &testWrap{*state}
@@ -74,7 +67,7 @@ func (w *testWrap) Step() {
 		case 9:
 			ptr := w.CPU.getDE()
 			for {
-				c := w.read(ptr)
+				c := w.CPU.Read(ptr)
 				if c == '$' {
 					break
 				}
