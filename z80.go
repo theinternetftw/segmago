@@ -18,11 +18,11 @@ type z80 struct {
 
 	InterruptMode byte
 
-	InterruptMasterEnable bool
-	MasterEnableRequested bool
+	InterruptMasterEnable     bool // IFF1
+	InterruptEnableNeedsDelay bool
 
 	NMI                    bool
-	InterruptSettingPreNMI bool
+	InterruptSettingPreNMI bool // IFF2
 
 	Steps  uint
 	Cycles uint
@@ -45,6 +45,10 @@ func (z *z80) write16(addr uint16, val uint16) {
 	z.Write(addr+1, byte(val>>8))
 }
 
+func (z *z80) interruptComplete() {
+	// TODO: signal to devices that interrupt is complete
+}
+
 func (z *z80) handleInterrupts() {
 
 	var intFlag *bool
@@ -63,7 +67,7 @@ func (z *z80) handleInterrupts() {
 		z.pushOp16(11, 0, z.PC)
 		z.PC = 0x0066
 	} else if intFlag != nil {
-		if z.InterruptMasterEnable {
+		if z.InterruptMasterEnable && !z.InterruptEnableNeedsDelay {
 			if z.InterruptMode == 0 {
 				z.Err(fmt.Errorf("Got interrupt in mode 0, which is not yet implemented"))
 			} else if z.InterruptMode == 2 {
@@ -75,7 +79,9 @@ func (z *z80) handleInterrupts() {
 				z.PC = 0x0038
 			}
 		}
-		z.IsHalted = false // NOTE: must they be enabled?
+		if z.IsHalted { // NOTE: must irqs be enabled to unhalt? I'd hope not...
+			z.resumeFromHalt()
+		}
 	}
 }
 
@@ -91,19 +97,48 @@ func (z *z80) getSubFlag() bool            { return z.F&0x02 > 0 }
 func (z *z80) getCarryFlag() bool          { return z.F&0x01 > 0 }
 
 func (z *z80) setFlags(flags uint32) {
-	// 0x000000 clear all flags
-	// 0x111111 set all flags
-	// 0x222222 leave all flags
+	// 0x00000000 clear all flags
+	// 0x11111111 set all flags
+	// 0x22222222 leave all flags
 
-	setSign, clearSign := flags>>20&1, ^flags>>21&1
-	setZero, clearZero := flags>>16&1, ^flags>>17&1
-	setHalfCarry, clearHalfCarry := flags>>12&1, ^flags>>13&1
-	setParityOverflow, clearParityOverflow := flags>>8&1, ^flags>>9&1
-	setSub, clearSub := flags>>4&1, ^flags>>5&1
-	setCarry, clearCarry := flags&1, ^flags>>1&1
+	clearSign := ^flags >> 29 & 1
+	clearF5 := ^flags >> 21 & 1
+	clearZero := ^flags >> 25 & 1
+	clearHalfCarry := ^flags >> 17 & 1
+	clearF3 := ^flags >> 13 & 1
+	clearParityOverflow := ^flags >> 9 & 1
+	clearSub := ^flags >> 5 & 1
+	clearCarry := ^flags >> 1 & 1
 
-	z.F &^= byte(clearSign<<7 | clearZero<<6 | clearHalfCarry<<4 | clearParityOverflow<<2 | clearSub<<1 | clearCarry)
-	z.F |= byte(setSign<<7 | setZero<<6 | setHalfCarry<<4 | setParityOverflow<<2 | setSub<<1 | setCarry)
+	setSign := flags >> 28 & 1
+	setZero := flags >> 24 & 1
+	setF5 := flags >> 20 & 1
+	setHalfCarry := flags >> 16 & 1
+	setF3 := flags >> 12 & 1
+	setParityOverflow := flags >> 8 & 1
+	setSub := flags >> 4 & 1
+	setCarry := flags & 1
+
+	clearBits := clearSign << 7
+	clearBits |= clearZero << 6
+	clearBits |= clearF5 << 5
+	clearBits |= clearHalfCarry << 4
+	clearBits |= clearF3 << 3
+	clearBits |= clearParityOverflow << 2
+	clearBits |= clearSub << 1
+	clearBits |= clearCarry
+
+	setBits := setSign << 7
+	setBits |= setZero << 6
+	setBits |= setF5 << 5
+	setBits |= setHalfCarry << 4
+	setBits |= setF3 << 3
+	setBits |= setParityOverflow << 2
+	setBits |= setSub << 1
+	setBits |= setCarry
+
+	z.F &^= byte(clearBits)
+	z.F |= byte(setBits)
 }
 
 func (z *z80) getAF() uint16 { return (uint16(z.A) << 8) | uint16(z.F) }
@@ -111,13 +146,20 @@ func (z *z80) getBC() uint16 { return (uint16(z.B) << 8) | uint16(z.C) }
 func (z *z80) getDE() uint16 { return (uint16(z.D) << 8) | uint16(z.E) }
 func (z *z80) getHL() uint16 { return (uint16(z.H) << 8) | uint16(z.L) }
 
-func (z *z80) setAF(val uint16) {
-	z.A = byte(val >> 8)
-	z.F = byte(val) &^ 0x0f
-}
+func (z *z80) setAF(val uint16) { z.A, z.F = byte(val>>8), byte(val) }
 func (z *z80) setBC(val uint16) { z.B, z.C = byte(val>>8), byte(val) }
 func (z *z80) setDE(val uint16) { z.D, z.E = byte(val>>8), byte(val) }
 func (z *z80) setHL(val uint16) { z.H, z.L = byte(val>>8), byte(val) }
+
+func (z *z80) getAFh() uint16 { return (uint16(z.Ah) << 8) | uint16(z.Fh) }
+func (z *z80) getBCh() uint16 { return (uint16(z.Bh) << 8) | uint16(z.Ch) }
+func (z *z80) getDEh() uint16 { return (uint16(z.Dh) << 8) | uint16(z.Eh) }
+func (z *z80) getHLh() uint16 { return (uint16(z.Hh) << 8) | uint16(z.Lh) }
+
+func (z *z80) setAFh(val uint16) { z.Ah, z.Fh = byte(val>>8), byte(val) }
+func (z *z80) setBCh(val uint16) { z.Bh, z.Ch = byte(val>>8), byte(val) }
+func (z *z80) setDEh(val uint16) { z.Dh, z.Eh = byte(val>>8), byte(val) }
+func (z *z80) setHLh(val uint16) { z.Hh, z.Lh = byte(val>>8), byte(val) }
 
 func (z *z80) setSP(val uint16) { z.SP = val }
 func (z *z80) setPC(val uint16) { z.PC = val }

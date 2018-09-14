@@ -8,14 +8,12 @@ import "os"
 
 func main() {
 
-	assert(len(os.Args) == 3, "usage: ./testz80 INPUT_FNAME EXPECTED_FNAME")
+	assert(len(os.Args) == 2, "usage: ./testz80 ROM_FILENAME")
 
-	input, err := ioutil.ReadFile(os.Args[1])
-	dieIf(err)
-	expected, err := ioutil.ReadFile(os.Args[2])
+	rom, err := ioutil.ReadFile(os.Args[1])
 	dieIf(err)
 
-	segmago.RunTestSuite(input, expected)
+	segmago.RunZEXTEST(rom)
 }
 
 func dieIf(err error) {

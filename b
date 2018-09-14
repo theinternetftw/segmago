@@ -4,6 +4,7 @@ projectname=segmago
 
 pkg=github.com/theinternetftw/$projectname/cmd/$projectname
 testpkg=github.com/theinternetftw/$projectname/cmd/testz80
+zexpkg=github.com/theinternetftw/$projectname/cmd/zextests
 
 if [ "$1" == "f" ]
 then
@@ -31,6 +32,7 @@ then
     set -x
     go build $pkg
     go build $testpkg
+    go build $zexpkg
 
 elif [ "$1" == "all" ]
 then

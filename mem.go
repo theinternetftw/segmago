@@ -27,7 +27,7 @@ func (m *mem) getPagingControlReg() byte {
 
 func (m *mem) setPagingControlReg(b byte) {
 	m.CartRAMPagedIn = b&8 > 0
-	m.PageRAMBank = uint16(boolByte(b&4 > 0))
+	m.PageRAMBank = uint16(boolBit(0, b&4 > 0))
 	assert(!m.CartRAMPagedIn, "Cart RAM not yet impld")
 }
 

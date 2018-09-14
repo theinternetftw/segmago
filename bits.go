@@ -10,13 +10,6 @@ func reverseByte(b byte) byte {
 	return out
 }
 
-func boolByte(b bool) byte {
-	if b {
-		return 1
-	}
-	return 0
-}
-
 func boolBit(bNum byte, b bool) byte {
 	if b {
 		return 1 << bNum
