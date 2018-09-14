@@ -2133,6 +2133,8 @@ func (z *z80) indexBitOp(cycles uint, instLen uint16, indexReg *uint16, bitNum b
 	addr := getDisplacedAddr(*indexReg, z.Read(z.PC+2))
 	val := z.Read(addr)
 	flags := bitOp(val, bitNum)
+	flags &^= 0x00101000
+	flags |= undocFlags(byte(addr >> 8))
 	z.setOpFn(cycles, instLen, func() {}, flags)
 }
 
@@ -2212,7 +2214,7 @@ func bitOp(val byte, bitNum byte) uint32 {
 	testVal := val & (1 << bitNum)
 	flags := signFlag(testVal)
 	flags |= zFlag(testVal)
-	flags |= undocFlags(val)
+	flags |= undocFlags(testVal)
 	flags |= 0x00010000
 	flags |= parityFlag(testVal)
 	flags |= 0x02
@@ -2607,14 +2609,16 @@ func (z *z80) cpBlockOp(dir int16) uint32 {
 	z.setBC(z.getBC() - 1)
 
 	result := z.A - src
+
+	hFlag := hFlagSub(z.A, src)
+
 	flags := signFlag(result)
 	flags |= zFlag(result)
-	flags |= hFlagSub(z.A, src)
+	flags |= hFlag
 	flags |= uint32(boolBit(0, z.getBC() != 0)) << 8
 	flags |= 0x12
 
-	// TODO: is it the H flag or z.H and in what form?
-	undocResult := z.A - src - z.H
+	undocResult := z.A - src - boolBit(0, hFlag != 0)
 	undocResult &^= 1 << 5
 	undocResult |= (undocResult & 2) << 4
 	flags |= undocFlags(undocResult)
