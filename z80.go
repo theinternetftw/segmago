@@ -1,7 +1,5 @@
 package segmago
 
-import "fmt"
-
 type z80 struct {
 	PC                     uint16
 	SP                     uint16
@@ -68,18 +66,22 @@ func (z *z80) handleInterrupts() {
 		z.PC = 0x0066
 	} else if intFlag != nil {
 		if z.InterruptMasterEnable && !z.InterruptEnableNeedsDelay {
+			z.InterruptMasterEnable = false
+			*intFlag = false
+			z.pushOp16(13, 0, z.PC)
 			if z.InterruptMode == 0 {
-				z.Err(fmt.Errorf("Got interrupt in mode 0, which is not yet implemented"))
-			} else if z.InterruptMode == 2 {
-				z.Err(fmt.Errorf("Got interrupt in mode 2, which is not yet implemented"))
-			} else {
-				z.InterruptMasterEnable = false
-				*intFlag = false
-				z.pushOp16(13, 0, z.PC)
+				// IMPORTANT: not real mode 0 logic
+				// Only valid for SMS2 and genesis!
 				z.PC = 0x0038
+			} else if z.InterruptMode == 1 {
+				z.PC = 0x0038
+			} else {
+				// IMPORTANT: not real mode 0 logic
+				// Only valid for SMS2 and genesis!
+				z.PC = uint16(z.I)<<8 | 0xff
 			}
 		}
-		if z.IsHalted { // NOTE: must irqs be enabled to unhalt? I'd hope not...
+		if z.IsHalted {
 			z.resumeFromHalt()
 		}
 	}
