@@ -1,8 +1,11 @@
 package segmago
 
+import "fmt"
+
 type mem struct {
-	RAM [8192]byte
-	rom []byte
+	RAM     [8192]byte
+	CartRAM [1024 * 32]byte
+	rom     []byte
 
 	CartRAMPagedIn bool
 	PageRAMBank    uint16
@@ -26,38 +29,50 @@ func (m *mem) getPagingControlReg() byte {
 }
 
 func (m *mem) setPagingControlReg(b byte) {
+	fmt.Printf("PageCtrl: 0x%02x\n", b)
 	m.CartRAMPagedIn = b&8 > 0
-	m.PageRAMBank = uint16(boolBit(0, b&4 > 0))
-	assert(!m.CartRAMPagedIn, "Cart RAM not yet impld")
+	m.PageRAMBank = uint16((b & 4) >> 2)
+	//assert(b&0x80 == 0, "dev machine ROM Write mode not implemented")
+	assert(b&0x08 == 0, "cart RAM over internal RAM mode not yet implemented")
 }
 
 func (emu *emuState) read(addr uint16) byte {
 	m := emu.Mem
+	var val byte
 	if addr < 0x400 {
-		return m.rom[addr]
-	}
-	if addr < 0x4000 {
+		val = m.rom[addr]
+	} else if addr < 0x4000 {
 		bank := m.Page0Bank
-		return m.rom[bank*0x4000+addr]
-	}
-	if addr < 0x8000 {
+		val = m.rom[bank*0x4000+addr]
+	} else if addr < 0x8000 {
 		bank := m.Page1Bank
-		return m.rom[bank*0x4000+(addr-0x4000)]
+		val = m.rom[bank*0x4000+(addr-0x4000)]
+	} else if addr < 0xc000 {
+		if m.CartRAMPagedIn {
+			bank := m.PageRAMBank
+			val = m.CartRAM[bank*0x4000+(addr-0x8000)]
+		} else {
+			bank := m.Page2Bank
+			val = m.rom[bank*0x4000+(addr-0x8000)]
+		}
+	} else if addr < 0xe000 {
+		val = m.RAM[addr-0xc000]
+	} else {
+		val = m.RAM[addr-0xe000]
 	}
-	if addr < 0xc000 {
-		errOut("page2/cartram not impld")
-	}
-	if addr < 0xe000 {
-		return m.RAM[addr-0xc000]
-	}
-	return m.RAM[addr-0xe000]
+	return val
 }
+
 func (emu *emuState) write(addr uint16, val byte) {
 	m := emu.Mem
 	if addr < 0x8000 {
-		return // rom
+		// rom
 	} else if addr < 0xc000 {
-		errOut("page2/cartram not impld")
+		if m.CartRAMPagedIn {
+			bank := m.PageRAMBank
+			m.CartRAM[bank*0x4000+(addr-0x8000)] = val
+		} else {
+		}
 	} else if addr < 0xe000 {
 		m.RAM[addr-0xc000] = val
 	} else {
