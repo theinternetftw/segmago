@@ -23,6 +23,12 @@ func newState(cart []byte) *emuState {
 	state.CPU.Out = state.out
 	state.CPU.RunCycles = state.runCycles
 
+
+	state.Mem.RAM[0] = 0xab
+	for i := 1; i < len(state.Mem.RAM); i++ {
+		state.Mem.RAM[i] = 0xff
+	}
+
 	return &state
 }
 
