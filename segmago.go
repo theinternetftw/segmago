@@ -1,6 +1,7 @@
 package segmago
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 )
@@ -23,6 +24,7 @@ func newState(cart []byte) *emuState {
 	state.CPU.Out = state.out
 	state.CPU.RunCycles = state.runCycles
 
+	checkCart(cart)
 
 	state.Mem.RAM[0] = 0xab
 	for i := 1; i < len(state.Mem.RAM); i++ {
@@ -30,6 +32,21 @@ func newState(cart []byte) *emuState {
 	}
 
 	return &state
+}
+
+func checkCart(cart []byte) {
+	hdrLocs := []int{0x1ff0, 0x3ff0, 0x7ff0}
+	hdrStart := 0
+	for _, addr := range hdrLocs {
+		magic := cart[addr : addr+8]
+		if bytes.Equal(magic, []byte("TMR SEGA")) {
+			hdrStart = addr
+			break
+		}
+	}
+	if hdrStart == 0 {
+		fmt.Println("bad cart start!")
+	}
 }
 
 func (emu *emuState) runCycles(numCycles uint) {
