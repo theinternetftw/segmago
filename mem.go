@@ -13,6 +13,8 @@ type mem struct {
 	Page0Bank uint16
 	Page1Bank uint16
 	Page2Bank uint16
+
+	lastPageCtrl byte // for debug
 }
 
 func (m *mem) getPagingControlReg() byte {
@@ -29,15 +31,18 @@ func (m *mem) getPagingControlReg() byte {
 }
 
 func (m *mem) setPagingControlReg(b byte) {
-	fmt.Printf("PageCtrl: 0x%02x\n", b)
+	if b != m.lastPageCtrl {
+		fmt.Printf("PageCtrl: 0x%02x last:0x%02x\n", b, m.lastPageCtrl)
+		m.lastPageCtrl = b
+	}
 	m.CartRAMPagedIn = b&8 > 0
 	m.PageRAMBank = uint16((b & 4) >> 2)
 	//assert(b&0x80 == 0, "dev machine ROM Write mode not implemented")
-	assert(b&0x08 == 0, "cart RAM over internal RAM mode not yet implemented")
+	//assert(b&0x08 == 0, "cart RAM over internal RAM mode not yet implemented")
 }
 
 func (emu *emuState) read(addr uint16) byte {
-	m := emu.Mem
+	m := &emu.Mem
 	var val byte
 	if addr < 0x400 {
 		val = m.rom[addr]
@@ -64,7 +69,7 @@ func (emu *emuState) read(addr uint16) byte {
 }
 
 func (emu *emuState) write(addr uint16, val byte) {
-	m := emu.Mem
+	m := &emu.Mem
 	if addr < 0x8000 {
 		// rom
 	} else if addr < 0xc000 {
