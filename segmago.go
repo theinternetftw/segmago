@@ -7,8 +7,13 @@ import (
 )
 
 type emuState struct {
-	CPU    z80
-	Mem    mem
+	CPU z80
+	Mem mem
+
+	Input Input
+
+	ResetPressed bool
+
 	Cycles uint
 }
 
@@ -57,10 +62,51 @@ func (emu *emuState) runCycles(numCycles uint) {
 
 // Input covers all outside info sent to the Emulator
 type Input struct {
+	// Keys is a bool array of keydown state
+	Keys [256]bool
+
+	Joypad1 Joypad
+	Joypad2 Joypad
+}
+
+// Joypad contains gamepad state
+type Joypad struct {
+	Up    bool
+	Down  bool
+	Left  bool
+	Right bool
+	A     bool
+	B     bool
+	Fire  bool // for lightgun
+}
+
+func (emu *emuState) readJoyReg0() byte {
+	return byteFromBools(
+		!emu.Input.Joypad2.Down,
+		!emu.Input.Joypad2.Up,
+		!emu.Input.Joypad1.B,
+		!emu.Input.Joypad1.A,
+		!emu.Input.Joypad1.Right,
+		!emu.Input.Joypad1.Left,
+		!emu.Input.Joypad1.Down,
+		!emu.Input.Joypad1.Up,
+	)
+}
+func (emu *emuState) readJoyReg1() byte {
+	return byteFromBools(
+		!emu.Input.Joypad2.Fire,
+		!emu.Input.Joypad1.Fire,
+		true,
+		!emu.ResetPressed,
+		!emu.Input.Joypad2.B,
+		!emu.Input.Joypad2.A,
+		!emu.Input.Joypad2.Right,
+		!emu.Input.Joypad2.Left,
+	)
 }
 
 func (emu *emuState) step() {
-	//fmt.Println(emu.CPU.debugStatusLine())
+	//	fmt.Println(emu.CPU.debugStatusLine())
 	emu.CPU.Step()
 }
 

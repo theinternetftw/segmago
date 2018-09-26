@@ -9,7 +9,7 @@ type Emulator interface {
 	Framebuffer() []byte
 	FlipRequested() bool
 
-	UpdateInput(input Input)
+	SetInput(input Input)
 	ReadSoundBuffer([]byte) []byte
 
 	MakeSnapshot() []byte
@@ -41,7 +41,8 @@ func (emu *emuState) Framebuffer() []byte {
 	return []byte{}
 }
 
-func (emu *emuState) UpdateInput(input Input) {
+func (emu *emuState) SetInput(input Input) {
+	emu.Input = input
 }
 
 // FlipRequested indicates if a draw request is pending
