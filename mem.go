@@ -122,9 +122,9 @@ func (emu *emuState) out(addr uint16, val byte) {
 	addr &= 0xff // sms ignores upper byte
 	if addr >= 0x40 && addr <= 0x7f {
 		if addr&1 == 0 {
-			errOut(fmt.Sprintf("sound not yet impled, got OUT 0x%02x, 0x%02x", addr, val))
+			//errOut(fmt.Sprintf("sound not yet impled, got OUT 0x%02x, 0x%02x", addr, val))
 		} else {
-			errOut(fmt.Sprintf("sound not yet impled, got OUT 0x%02x, 0x%02x", addr, val))
+			//errOut(fmt.Sprintf("sound not yet impled, got OUT 0x%02x, 0x%02x", addr, val))
 		}
 	} else if addr >= 0x80 && addr <= 0xbf {
 		if addr&1 == 0 {
