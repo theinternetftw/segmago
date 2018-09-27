@@ -13,6 +13,10 @@ import (
 func RunZEXTEST(cart []byte) {
 	state := newState(cart)
 
+	// no surprises
+	state.VDP.LineInterruptEnable = false
+	state.VDP.FrameInterruptEnable = false
+
 	// changes for ZEXDOC:
 
 	state.CPU.PC = 0x0100
