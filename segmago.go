@@ -16,7 +16,56 @@ type emuState struct {
 
 	ResetPressed bool
 
+	THAOutput bool
+	THBOutput bool
+	TRAOutput bool
+	TRBOutput bool
+
+	THAInOutputMode bool
+	THBInOutputMode bool
+	TRAInOutputMode bool
+	TRBInOutputMode bool
+
+	isDomesticConsole bool
+
 	Cycles uint
+}
+
+func (emu *emuState) setIOControlReg(val byte) {
+
+	var THBInInputMode, TRBInInputMode bool
+	var THAInInputMode, TRAInInputMode bool
+	var THBOutputTry, TRBOutputTry bool
+	var THAOutputTry, TRAOutputTry bool
+
+	boolsFromByte(val,
+		&THBOutputTry,
+		&TRBOutputTry,
+		&THAOutputTry,
+		&TRAOutputTry,
+		&THBInInputMode,
+		&TRBInInputMode,
+		&THAInInputMode,
+		&TRAInInputMode,
+	)
+
+	if emu.THBInOutputMode {
+		emu.THBOutput = THBOutputTry
+	}
+	if emu.TRBInOutputMode {
+		emu.TRBOutput = TRBOutputTry
+	}
+	if emu.THAInOutputMode {
+		emu.THAOutput = THAOutputTry
+	}
+	if emu.TRAInOutputMode {
+		emu.TRAOutput = TRAOutputTry
+	}
+
+	emu.THBInOutputMode = !THBInInputMode
+	emu.TRBInOutputMode = !TRBInInputMode
+	emu.THAInOutputMode = !THAInInputMode
+	emu.TRAInOutputMode = !TRAInInputMode
 }
 
 func newState(cart []byte) *emuState {
@@ -104,9 +153,30 @@ func (emu *emuState) readJoyReg0() byte {
 	)
 }
 func (emu *emuState) readJoyReg1() byte {
+
+	thB := !emu.Input.Joypad2.Fire
+	thA := !emu.Input.Joypad1.Fire
+
+	// TODO: both export and domestic console differences
+	// (this is export mode, domestic returns 0x00)
+	if emu.THBInOutputMode {
+		if emu.isDomesticConsole {
+			thB = false
+		} else { // export
+			thB = emu.THBOutput
+		}
+	}
+	if emu.THAInOutputMode {
+		if emu.isDomesticConsole {
+			thB = false
+		} else { // export
+			thA = emu.THAOutput
+		}
+	}
+
 	return byteFromBools(
-		!emu.Input.Joypad2.Fire,
-		!emu.Input.Joypad1.Fire,
+		thB,
+		thA,
 		true,
 		!emu.ResetPressed,
 		!emu.Input.Joypad2.B,
