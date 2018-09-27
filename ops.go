@@ -1900,10 +1900,10 @@ func (z *z80) StepOpcode() {
 	case 0xd2: // jp nc, nn
 		z.jmpAbs16(10, 10, 3, !z.getCarryFlag(), z.read16(z.PC+1))
 	case 0xd3: // out (n), A
-		z.setOpFn(11, 2, func() {
-			addr := uint16(z.A)<<8 | uint16(z.Read(z.PC+1))
-			z.Out(addr, z.A)
-		}, 0x22222222)
+		z.RunCycles(11)
+		addr := uint16(z.A)<<8 | uint16(z.Read(z.PC+1))
+		z.Out(addr, z.A)
+		z.PC += 2
 	case 0xd4: // call nc, nn
 		z.jmpCall(17, 10, 3, !z.getCarryFlag(), z.read16(z.PC+1))
 	case 0xd5: // push de
@@ -1927,10 +1927,8 @@ func (z *z80) StepOpcode() {
 	case 0xda: // jp c, nn
 		z.jmpAbs16(10, 10, 3, z.getCarryFlag(), z.read16(z.PC+1))
 	case 0xdb: // in a, (n)
-		z.setOpFn(11, 2, func() {
-			addr := uint16(z.A)<<8 | uint16(z.Read(z.PC+1))
-			z.A = z.In(addr)
-		}, 0x22222222)
+		addr := uint16(z.A)<<8 | uint16(z.Read(z.PC+1))
+		z.setOpA(11, 2, z.In(addr), 0x22222222)
 	case 0xdc: // call c, nn
 		z.jmpCall(17, 10, 3, z.getCarryFlag(), z.read16(z.PC+1))
 	case 0xdd:
