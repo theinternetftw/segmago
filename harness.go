@@ -384,11 +384,6 @@ func compareEndState(s *emuState, test *suiteTest) bool {
 
 var testsToIgnore = []string{
 
-	// FIXME: run these when you understand and implement
-	// what MEMPTR is and what it does to undocFlags
-	"cb46_1", "cb46_2", "cb46_3", "cb46_4", "cb46_5",
-	"cb4e", "cb5e", "cb6e", "cb76",
-
 	// FIXME: run these when you understand what's going
 	// on with ports
 	"db_1", "db_2", "db_3", "db",
@@ -419,6 +414,10 @@ func isIgnorableTest(test *suiteTest) bool {
 func RunTestSuite(input []byte, expected []byte) {
 	state := newState([]byte{})
 
+	// no surprises
+	state.VDP.LineInterruptEnable = false
+	state.VDP.FrameInterruptEnable = false
+
 	// changes for Test Suite:
 
 	RAM := make([]byte, 0x10000)
@@ -439,6 +438,9 @@ func RunTestSuite(input []byte, expected []byte) {
 
 	fmt.Println(len(tests), "tests found")
 
+	fmt.Println(len(testsToIgnore), "tests are being skipped")
+
+	failCount := 0
 	for i := range tests {
 		if isIgnorableTest(&tests[i]) {
 			continue
@@ -448,11 +450,13 @@ func RunTestSuite(input []byte, expected []byte) {
 			state.Step()
 		}
 		if !compareEndState(state, &tests[i]) {
-			fmt.Println("bad test, stopping early")
-			return
+			failCount++
+			//fmt.Println("bad test, stopping early")
+			//return
 		}
-		fmt.Println("finished test", i)
+		//fmt.Println("finished test", i)
 	}
 	fmt.Println()
+	fmt.Println("Fail count:", failCount)
 	fmt.Println("ALL non-skipped TESTS COMPLETE")
 }
