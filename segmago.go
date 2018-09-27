@@ -45,6 +45,9 @@ func checkCart(cart []byte) {
 	hdrLocs := []int{0x1ff0, 0x3ff0, 0x7ff0}
 	hdrStart := 0
 	for _, addr := range hdrLocs {
+		if len(cart) < addr+8 {
+			continue
+		}
 		magic := cart[addr : addr+8]
 		if bytes.Equal(magic, []byte("TMR SEGA")) {
 			hdrStart = addr
@@ -114,7 +117,7 @@ func (emu *emuState) readJoyReg1() byte {
 }
 
 func (emu *emuState) step() {
-	//	fmt.Println(emu.CPU.debugStatusLine())
+	//fmt.Println(emu.CPU.debugStatusLine())
 	emu.CPU.Step()
 }
 
