@@ -12,6 +12,8 @@ type emuState struct {
 
 	Input Input
 
+	VDP vdp
+
 	ResetPressed bool
 
 	Cycles uint
@@ -57,6 +59,12 @@ func checkCart(cart []byte) {
 func (emu *emuState) runCycles(numCycles uint) {
 	for i := uint(0); i < numCycles; i++ {
 		emu.Cycles++
+		emu.VDP.runCycle()
+	}
+	if emu.VDP.LineInterruptEnable {
+		if emu.VDP.LineInterruptPending {
+			emu.CPU.IRQ = true
+		}
 	}
 }
 

@@ -38,7 +38,7 @@ func (emu *emuState) ReadSoundBuffer(toFill []byte) []byte {
 
 // Framebuffer returns the current state of the lcd screen
 func (emu *emuState) Framebuffer() []byte {
-	return []byte{}
+	return emu.VDP.framebuffer[:]
 }
 
 func (emu *emuState) SetInput(input Input) {

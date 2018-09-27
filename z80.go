@@ -19,6 +19,10 @@ type z80 struct {
 	InterruptMasterEnable     bool // IFF1
 	InterruptEnableNeedsDelay bool
 
+	// z80 irq is more complicated than this,
+	// but not for sms!
+	IRQ bool
+
 	NMI                    bool
 	InterruptSettingPreNMI bool // IFF2
 
@@ -48,26 +52,15 @@ func (z *z80) interruptComplete() {
 }
 
 func (z *z80) handleInterrupts() {
-
-	var intFlag *bool
-	/*
-		if PUT_IRQ_HERE {
-			intFlag, intAddr = &z.VBlankIRQ, 0x0040
-		} else if PUT_OTHER_IRQ_HERE {
-			intFlag, intAddr = &z.LCDStatIRQ, 0x0048
-		}
-	*/
-
 	if z.NMI {
 		z.NMI = false
 		z.InterruptSettingPreNMI = z.InterruptMasterEnable
 		z.InterruptMasterEnable = false
 		z.pushOp16(11, 0, z.PC)
 		z.PC = 0x0066
-	} else if intFlag != nil {
+	} else if z.IRQ {
 		if z.InterruptMasterEnable && !z.InterruptEnableNeedsDelay {
 			z.InterruptMasterEnable = false
-			*intFlag = false
 			z.pushOp16(13, 0, z.PC)
 			if z.InterruptMode == 0 {
 				// IMPORTANT: not real mode 0 logic

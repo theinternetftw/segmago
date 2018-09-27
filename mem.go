@@ -94,12 +94,47 @@ func (emu *emuState) write(addr uint16, val byte) {
 		}
 	}
 }
+
 func (emu *emuState) in(addr uint16) byte {
 	addr &= 0xff // sms ignores upper byte
-	errOut("IN command not yet impld")
-	return 0
+	var val byte
+	if addr <= 0x3f {
+		val = 0xff // right for SMS2, SMS has weird bus stuff
+	} else if addr >= 0x40 && addr <= 0x7f {
+		errOut(fmt.Sprintf("IN command not yet impld 0x%02x", addr))
+	} else if addr >= 0x80 && addr <= 0xbf {
+		if addr&1 == 0 {
+			val = emu.VDP.readDataPort()
+		} else {
+			errOut(fmt.Sprintf("IN command not yet impld 0x%02x", addr))
+		}
+	} else { // >= 0xc0
+		if addr&1 == 0 {
+			val = emu.readJoyReg0()
+		} else {
+			val = emu.readJoyReg1()
+		}
+	}
+	return val
 }
+
 func (emu *emuState) out(addr uint16, val byte) {
 	addr &= 0xff // sms ignores upper byte
-	errOut("OUT command not yet impld")
+	if addr >= 0x40 && addr <= 0x7f {
+		if addr&1 == 0 {
+			errOut(fmt.Sprintf("sound not yet impled, got OUT 0x%02x, 0x%02x", addr, val))
+		} else {
+			errOut(fmt.Sprintf("sound not yet impled, got OUT 0x%02x, 0x%02x", addr, val))
+		}
+	} else if addr >= 0x80 && addr <= 0xbf {
+		if addr&1 == 0 {
+			emu.VDP.writeDataPort(val)
+		} else {
+			emu.VDP.writeControlPort(val)
+		}
+	} else if addr >= 0xc0 {
+		// NOP: writes == old SG-3000 keyboard ports that don't matter to sms
+	} else {
+		errOut(fmt.Sprintf("OUT command not yet impld 0x%02x, 0x%02x", addr, val))
+	}
 }
