@@ -122,7 +122,7 @@ func (v *vdp) writeControlPort(val byte) {
 		v.OnSecondControlByte = true
 	} else {
 		v.AddrReg &^= 0xff00
-		v.AddrReg |= uint16(val) << 8 & 0x3f
+		v.AddrReg |= uint16(val&0x3f) << 8
 		v.CodeReg = val >> 6
 		v.OnSecondControlByte = false
 		switch v.CodeReg {
