@@ -94,6 +94,13 @@ func newState(cart []byte) *emuState {
 		state.Mem.RAM[i] = 0xff
 	}
 
+	state.Mem.Page0Bank = 0
+	state.Mem.Page1Bank = 1
+	state.Mem.Page2Bank = 2
+
+	state.VDP.LineInterruptEnable = true
+	state.VDP.FrameInterruptEnable = true
+
 	return &state
 }
 
@@ -122,6 +129,11 @@ func (emu *emuState) runCycles(numCycles uint) {
 	}
 	if emu.VDP.LineInterruptEnable {
 		if emu.VDP.LineInterruptPending {
+			emu.CPU.IRQ = true
+		}
+	}
+	if emu.VDP.FrameInterruptEnable {
+		if emu.VDP.FrameInterruptPending {
 			emu.CPU.IRQ = true
 		}
 	}
@@ -194,7 +206,7 @@ func (emu *emuState) readJoyReg1() byte {
 }
 
 func (emu *emuState) step() {
-	//fmt.Println(emu.CPU.debugStatusLine())
+	//	fmt.Println(emu.CPU.debugStatusLine())
 	emu.CPU.Step()
 }
 
