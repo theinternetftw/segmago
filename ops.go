@@ -2515,7 +2515,7 @@ func (z *z80) stepEDPrefixOpcode() {
 			z.RunCycles(21)
 		}
 	case 0xb3: // otir
-		z.setFlags(z.inBlockOp(1))
+		z.setFlags(z.outBlockOp(1))
 		if z.B == 0 {
 			z.runAndUpdatePC(16, 2)
 		} else {
@@ -2544,7 +2544,7 @@ func (z *z80) stepEDPrefixOpcode() {
 			z.RunCycles(21)
 		}
 	case 0xbb: // otdr
-		z.setFlags(z.inBlockOp(-1))
+		z.setFlags(z.outBlockOp(-1))
 		if z.B == 0 {
 			z.runAndUpdatePC(16, 2)
 		} else {
