@@ -47,7 +47,9 @@ func (emu *emuState) SetInput(input Input) {
 
 // FlipRequested indicates if a draw request is pending
 func (emu *emuState) FlipRequested() bool {
-	return false
+	req := emu.VDP.FlipRequested
+	emu.VDP.FlipRequested = false
+	return req
 }
 
 // Step steps the emulator one instruction

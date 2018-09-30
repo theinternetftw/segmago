@@ -66,6 +66,8 @@ type vdp struct {
 
 	ScreenX uint16
 	ScreenY uint16
+
+	FlipRequested bool
 }
 
 func (v *vdp) writeDataPort(val byte) {
@@ -141,13 +143,30 @@ func (v *vdp) readHCounter() byte {
 	return byte(v.ScreenX >> 1)
 }
 
+func (v *vdp) drawColor(x, y, r, g, b byte) {
+	base := int(y)*256*4 + int(x)*4
+	v.framebuffer[base+0] = r
+	v.framebuffer[base+1] = g
+	v.framebuffer[base+2] = b
+	v.framebuffer[base+3] = 0xff
+}
+
+func (v *vdp) renderScanline(y uint16) {
+	for x := byte(0); x < 255; x++ {
+		v.drawColor(x, byte(y), x, byte(y), byte(y))
+	}
+}
+
 func (v *vdp) runCycle() {
 	v.ScreenX++
 	if v.ScreenX == 342 {
+		onePastLastLine := v.getOnePastLastActiveLine()
+		if v.ScreenY < onePastLastLine {
+			v.renderScanline(v.ScreenY)
+		}
 		v.ScreenX = 0
 		v.ScreenY++
 		v.incVCounter()
-		onePastLastLine := v.getOnePastLastActiveLine()
 		if v.ScreenY <= onePastLastLine {
 			v.LineInterruptCounter--
 			if v.LineInterruptCounter == 0xff {
@@ -165,6 +184,7 @@ func (v *vdp) runCycle() {
 			v.ScreenY = 0
 			v.VCounter = 0
 			v.VCounterFixupsThisFrame = 0
+			v.FlipRequested = true
 		}
 	}
 }
