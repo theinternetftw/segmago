@@ -69,6 +69,13 @@ func (emu *emuState) setIOControlReg(val byte) {
 }
 
 func newState(cart []byte) *emuState {
+
+	// strip a header that is only sometimes seen...
+	if len(cart)&0x3fff == 512 {
+		fmt.Println("found added header, stripping...")
+		cart = cart[512:]
+	}
+
 	state := emuState{
 		Mem: mem{
 			rom: cart,
