@@ -2560,14 +2560,16 @@ func (z *z80) stepEDPrefixOpcode() {
 }
 
 func (z *z80) outBlockOp(dir int16) uint32 {
-	addr := uint16(z.B)<<8 | uint16(z.C)
 	val := z.Read(z.getHL())
+
+	newB, flags := decOp(z.B)
+	z.B = newB
+
+	addr := uint16(z.B)<<8 | uint16(z.C)
 	z.Out(addr, val)
 
 	z.setHL(z.getHL() + uint16(dir))
 
-	newB, flags := decOp(z.B)
-	z.B = newB
 	return flags
 }
 
