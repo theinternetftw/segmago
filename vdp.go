@@ -151,9 +151,67 @@ func (v *vdp) drawColor(x, y, r, g, b byte) {
 	v.framebuffer[base+3] = 0xff
 }
 
+func (v *vdp) getNameTableEntry(tileX, tileY uint16) uint16 {
+	baseAddr := v.SMSNameTableAddr << 11
+	addr := baseAddr | (tileY << 6) | tileX<<1
+	entry := uint16(v.VRAM[addr]) | uint16(v.VRAM[addr+1])<<8
+	return entry
+}
+
+func (v *vdp) getTileColor(entry, x, y uint16) byte {
+	// TODO: xscrollFine, yscrollFine
+
+	patternNum := entry & 0x1ff
+	hFlip := entry>>9&1 > 0
+	vFlip := entry>>10&1 > 0
+	palSel := entry >> 11 & 1
+
+	if hFlip {
+		x = 7 - x
+	}
+	if vFlip {
+		y = 7 - y
+	}
+
+	pattern := v.VRAM[patternNum*32:]
+	line := pattern[4*y:]
+
+	bit0 := line[0] >> (7 - x) & 1
+	bit1 := line[1] >> (7 - x) & 1
+	bit2 := line[2] >> (7 - x) & 1
+	bit3 := line[3] >> (7 - x) & 1
+
+	palIdx := bit0 | bit1<<1 | bit2<<2 | bit3<<3
+	pal := v.ColorRAM[palSel*16:]
+	col := pal[palIdx]
+
+	return col
+}
+
+func (v *vdp) getRGB(vdpCol byte) (byte, byte, byte) {
+	r := (vdpCol & 3) << 6
+	g := (vdpCol >> 2 & 3) << 6
+	b := (vdpCol >> 4 & 3) << 6
+	return r, g, b
+}
+
 func (v *vdp) renderScanline(y uint16) {
-	for x := byte(0); x < 255; x++ {
-		v.drawColor(x, byte(y), x, byte(y), byte(y))
+	tileY := y / 8
+	tileBGPriority := [32]bool{}
+	bgCol := [256]byte{}
+	for tileX := uint16(0); tileX < 32; tileX++ {
+		entry := v.getNameTableEntry(tileX, tileY)
+		tileBGPriority[tileX] = entry&0x1000 > 0
+		for i := uint16(0); i < 8; i++ {
+			col := v.getTileColor(entry, i, y&7)
+			pX := byte(tileX*8 + i)
+			bgCol[pX] = col
+		}
+	}
+	for x := 0; x < 256; x++ {
+		bg := bgCol[x]
+		r, g, b := v.getRGB(bg)
+		v.drawColor(byte(x), byte(y), r, g, b)
 	}
 }
 
