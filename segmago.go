@@ -127,16 +127,8 @@ func (emu *emuState) runCycles(numCycles uint) {
 		emu.Cycles++
 		emu.VDP.runCycle()
 	}
-	if emu.VDP.LineInterruptEnable {
-		if emu.VDP.LineInterruptPending {
-			emu.CPU.IRQ = true
-		}
-	}
-	if emu.VDP.FrameInterruptEnable {
-		if emu.VDP.FrameInterruptPending {
-			emu.CPU.IRQ = true
-		}
-	}
+	emu.CPU.IRQ = (emu.VDP.LineInterruptEnable && emu.VDP.LineInterruptPending) ||
+		(emu.VDP.FrameInterruptEnable && emu.VDP.FrameInterruptPending)
 }
 
 // Input covers all outside info sent to the Emulator
