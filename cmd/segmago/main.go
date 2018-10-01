@@ -80,7 +80,7 @@ func startEmu(filename string, window *platform.WindowState, emu segmago.Emulato
 				newInput.Joypad1.Left = cid(key.CodeA)
 				newInput.Joypad1.Right = cid(key.CodeD)
 				newInput.Joypad1.A = cid(key.CodeJ)
-				newInput.Joypad1.A = cid(key.CodeK)
+				newInput.Joypad1.B = cid(key.CodeK)
 			}
 			window.Mutex.Unlock()
 
