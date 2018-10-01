@@ -143,7 +143,7 @@ func (v *vdp) readHCounter() byte {
 	return byte(v.ScreenX >> 1)
 }
 
-func (v *vdp) drawColor(x, y, r, g, b byte) {
+func (v *vdp) drawColor(x, y uint16, r, g, b byte) {
 	base := int(y)*256*4 + int(x)*4
 	v.framebuffer[base+0] = r
 	v.framebuffer[base+1] = g
@@ -152,10 +152,23 @@ func (v *vdp) drawColor(x, y, r, g, b byte) {
 }
 
 func (v *vdp) getNameTableEntry(tileX, tileY uint16) uint16 {
-	baseAddr := v.SMSNameTableAddr << 11
+	baseAddr := v.SMSNameTableAddr
 	addr := baseAddr | (tileY << 6) | tileX<<1
 	entry := uint16(v.VRAM[addr]) | uint16(v.VRAM[addr+1])<<8
 	return entry
+}
+
+func (v *vdp) getPatternCplanes(patternNum, x, y uint16) byte {
+	pattern := v.VRAM[patternNum*32:]
+	line := pattern[4*y:]
+
+	bit0 := line[0] >> (7 - x) & 1
+	bit1 := line[1] >> (7 - x) & 1
+	bit2 := line[2] >> (7 - x) & 1
+	bit3 := line[3] >> (7 - x) & 1
+
+	palIdx := bit0 | bit1<<1 | bit2<<2 | bit3<<3
+	return palIdx
 }
 
 func (v *vdp) getTileColor(entry, x, y uint16) byte {
@@ -173,15 +186,8 @@ func (v *vdp) getTileColor(entry, x, y uint16) byte {
 		y = 7 - y
 	}
 
-	pattern := v.VRAM[patternNum*32:]
-	line := pattern[4*y:]
+	palIdx := v.getPatternCplanes(patternNum, x, y)
 
-	bit0 := line[0] >> (7 - x) & 1
-	bit1 := line[1] >> (7 - x) & 1
-	bit2 := line[2] >> (7 - x) & 1
-	bit3 := line[3] >> (7 - x) & 1
-
-	palIdx := bit0 | bit1<<1 | bit2<<2 | bit3<<3
 	pal := v.ColorRAM[palSel*16:]
 	col := pal[palIdx]
 
@@ -195,23 +201,128 @@ func (v *vdp) getRGB(vdpCol byte) (byte, byte, byte) {
 	return r, g, b
 }
 
+type sprite struct {
+	x, y       uint16
+	patternNum uint16
+}
+
+func (v *vdp) getSpriteHeight() uint16 {
+	spriteHeight := uint16(8)
+	if v.LargeSprites {
+		spriteHeight *= 2
+	}
+	if v.StretchedSprites {
+		spriteHeight *= 2
+	}
+	return spriteHeight
+}
+
+func (v *vdp) getSpritesForLine(slist []sprite, y uint16) []sprite {
+	base := v.SMSSpriteAttrTableAddr
+
+	slist = slist[:0]
+
+	spriteHeight := v.getSpriteHeight()
+	lineHeight := v.getOnePastLastActiveLine()
+
+	numSprites := 0
+	for i := uint16(0); i < 64; i++ {
+		spriteY := uint16(v.VRAM[base+i]) + 1
+		if spriteY == 0xd1 && lineHeight == 192 {
+			break
+		}
+		if y >= spriteY && y < spriteY+spriteHeight {
+			spriteX := uint16(v.VRAM[base+0x80+i*2])
+			patternNum := uint16(v.VRAM[base+0x80+i*2+1])
+			slist = append(slist, sprite{
+				x:          spriteX,
+				y:          spriteY,
+				patternNum: patternNum,
+			})
+			numSprites++
+		}
+		if numSprites == 8 {
+			break
+		}
+	}
+
+	return slist[:numSprites]
+}
+
+func (v *vdp) getSpriteCplanes(sp sprite, x, y uint16) byte {
+	tileBase := v.SMSSpriteTileTableAddr
+
+	patternNum := sp.patternNum
+	if tileBase > 0 {
+		patternNum += 0x100
+	}
+
+	if v.StretchedSprites {
+		x /= 2
+		y /= 2
+	}
+	if v.LargeSprites {
+		if y >= 8 {
+			patternNum |= 1
+			y -= 8
+		} else {
+			patternNum &^= 1
+		}
+	}
+
+	palIdx := v.getPatternCplanes(patternNum, x, y)
+	return palIdx
+}
+
 func (v *vdp) renderScanline(y uint16) {
+
 	tileY := y / 8
+	tileY += v.ScrollY / 8
+
+	lineHeight := v.getOnePastLastActiveLine()
+	if lineHeight == 192 {
+		for tileY > 27 {
+			tileY -= 28
+		}
+	} else {
+		tileY &= 31
+	}
+
 	tileBGPriority := [32]bool{}
 	bgCol := [256]byte{}
-	for tileX := uint16(0); tileX < 32; tileX++ {
+	for i := uint16(0); i < 32; i++ {
+		tileX := (i - v.ScrollX/8) & 31
 		entry := v.getNameTableEntry(tileX, tileY)
-		tileBGPriority[tileX] = entry&0x1000 > 0
-		for i := uint16(0); i < 8; i++ {
-			col := v.getTileColor(entry, i, y&7)
-			pX := byte(tileX*8 + i)
+		tileBGPriority[i] = entry&0x1000 > 0
+		for j := uint16(0); j < 8; j++ {
+			col := v.getTileColor(entry, j, y&7)
+			pX := byte(i*8 + j)
 			bgCol[pX] = col
 		}
 	}
-	for x := 0; x < 256; x++ {
+
+	spriteListStorage := [8]sprite{}
+	spriteList := v.getSpritesForLine(spriteListStorage[:], y)
+	spriteHeight := v.getSpriteHeight()
+
+	for x := uint16(0); x < 256; x++ {
 		bg := bgCol[x]
 		r, g, b := v.getRGB(bg)
-		v.drawColor(byte(x), byte(y), r, g, b)
+		v.drawColor(x, y, r, g, b)
+		for i := range spriteList {
+			spriteX := spriteList[i].x
+			if x >= spriteX && x < spriteX+spriteHeight {
+				sprite := spriteList[i]
+				colX, colY := x-sprite.x, y-sprite.y
+				spriteCplanes := v.getSpriteCplanes(sprite, colX, colY)
+				if spriteCplanes != 0 {
+					pal := v.ColorRAM[16:]
+					r, g, b := v.getRGB(pal[spriteCplanes])
+					v.drawColor(x, y, r, g, b)
+					break
+				}
+			}
+		}
 	}
 }
 
@@ -281,12 +392,12 @@ func (v *vdp) setReg(regNum byte, val byte) {
 
 	case 2:
 		v.TMS9918NameTableAddr = uint16(val & 0x0f)
-		v.SMSNameTableAddr = uint16((val >> 1) & 0x07)
-		v.SMSNameTableMaskBit = uint16(val & 1)
+		v.SMSNameTableAddr = uint16((val>>1)&0x07) << 11
+		v.SMSNameTableMaskBit = uint16(val & 1) // TODO use?
 
 	case 3:
 		// FIXME: noting here in case I want to implement sg-1000 mode
-		// that i'm unsure on the masking in this and the other
+		// that i'm unsure on the masking/shifting in this and the other
 		// tms99918-only tables.
 
 		v.TMS9918ColortableAddr = uint16(val)
@@ -297,12 +408,12 @@ func (v *vdp) setReg(regNum byte, val byte) {
 
 	case 5:
 		v.TMS9918SpriteAttrTableAddr = uint16(val & 0x7f)
-		v.SMSSpriteAttrTableAddr = uint16((val >> 1) & 0x3f)
+		v.SMSSpriteAttrTableAddr = uint16((val>>1)&0x3f) << 8
 		v.SMSSpriteAttrTableMaskBit = uint16(val & 1)
 
 	case 6:
 		v.TMS9918SpriteTileTableAddr = uint16(val & 0x07)
-		v.SMSSpriteTileTableAddr = uint16((val >> 1) & 0x03)
+		v.SMSSpriteTileTableAddr = uint16((val>>2)&1) << 13
 		v.SMSSpriteTileTableMaskBit = uint16(val & 1)
 
 	case 7:
