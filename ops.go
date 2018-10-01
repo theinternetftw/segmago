@@ -1660,7 +1660,7 @@ func (z *z80) StepOpcode() {
 	// NOTE: this is here to lag behind the IE
 	// request by one instruction.
 	if z.InterruptEnableNeedsDelay {
-		z.InterruptEnableNeedsDelay = true
+		z.InterruptEnableNeedsDelay = false
 	}
 
 	opcode := z.Read(z.PC)
@@ -2007,7 +2007,7 @@ func (z *z80) StepOpcode() {
 		z.jmpAbs16(10, 10, 3, z.getSignFlag(), z.read16(z.PC+1))
 	case 0xfb: // ei
 		z.setOpFn(4, 1, func() {
-			z.InterruptEnableNeedsDelay = false
+			z.InterruptEnableNeedsDelay = true
 			z.InterruptMasterEnable = true
 			z.InterruptSettingPreNMI = true
 		}, 0x22222222)
