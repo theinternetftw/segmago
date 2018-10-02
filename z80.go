@@ -59,6 +59,9 @@ func (z *z80) handleInterrupts() {
 		z.pushOp16(11, 0, z.PC)
 		z.PC = 0x0066
 	} else if z.IRQ {
+		if z.IsHalted {
+			z.resumeFromHalt()
+		}
 		if z.InterruptMasterEnable && !z.InterruptEnableNeedsDelay {
 			z.InterruptMasterEnable = false
 			z.pushOp16(13, 0, z.PC)
@@ -73,9 +76,6 @@ func (z *z80) handleInterrupts() {
 				// Only valid for SMS2 and genesis!
 				z.PC = uint16(z.I)<<8 | 0xff
 			}
-		}
-		if z.IsHalted {
-			z.resumeFromHalt()
 		}
 	}
 }
