@@ -31,6 +31,19 @@ type emuState struct {
 	Cycles uint
 }
 
+func (emu *emuState) setMemControlReg(val byte) {
+	if val&0x40 == 0 {
+		fmt.Println("set to cart storage")
+		emu.Mem.SelectedMem = emu.Mem.CartStorage
+	} else if val&0x08 == 0 {
+		fmt.Println("set to bios storage")
+		emu.Mem.SelectedMem = emu.Mem.BIOSStorage
+	} else {
+		fmt.Println("set to null storage")
+		emu.Mem.SelectedMem = emu.Mem.NullStorage
+	}
+}
+
 func (emu *emuState) setIOControlReg(val byte) {
 
 	var THBInInputMode, TRBInInputMode bool
@@ -68,7 +81,7 @@ func (emu *emuState) setIOControlReg(val byte) {
 	emu.TRAInOutputMode = !TRAInInputMode
 }
 
-func newState(cart []byte) *emuState {
+func newState(cart, bios []byte) *emuState {
 
 	// strip a header that is only sometimes seen...
 	if len(cart)&0x3fff == 512 {
@@ -76,11 +89,10 @@ func newState(cart []byte) *emuState {
 		cart = cart[512:]
 	}
 
-	state := emuState{
-		Mem: mem{
-			rom: cart,
-		},
-	}
+	state := emuState{}
+
+	state.Mem.init(cart, bios)
+
 	state.CPU.Read = state.read
 	state.CPU.Write = state.write
 	state.CPU.In = state.in
@@ -93,10 +105,6 @@ func newState(cart []byte) *emuState {
 	for i := 1; i < len(state.Mem.RAM); i++ {
 		state.Mem.RAM[i] = 0xff
 	}
-
-	state.Mem.Page0Bank = state.Mem.wrapROMBankNum(0)
-	state.Mem.Page1Bank = state.Mem.wrapROMBankNum(1)
-	state.Mem.Page2Bank = state.Mem.wrapROMBankNum(2)
 
 	state.VDP.LineInterruptEnable = true
 	state.VDP.FrameInterruptEnable = true

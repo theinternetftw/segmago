@@ -25,8 +25,8 @@ func (emu *emuState) LoadSnapshot(snapBytes []byte) (Emulator, error) {
 }
 
 // NewEmulator creates an emulation session
-func NewEmulator(cart []byte) Emulator {
-	return newState(cart)
+func NewEmulator(cart, bios []byte) Emulator {
+	return newState(cart, bios)
 }
 
 // ReadSoundBuffer returns a 44100hz * 16bit * 2ch sound buffer.

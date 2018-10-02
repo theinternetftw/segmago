@@ -17,13 +17,26 @@ func main() {
 
 	defer profiling.Start().Stop()
 
-	assert(len(os.Args) == 2, "usage: ./segmago ROM_FILENAME")
+	numArgs := len(os.Args)
+	assert(numArgs == 2 || numArgs == 3, "usage: ./segmago ROM_FILENAME [BIOS_FILENAME]")
 	cartFilename := os.Args[1]
 
-	cart, err := ioutil.ReadFile(cartFilename)
-	dieIf(err)
+	var cart []byte
+	if cartFilename != "null" {
+		var err error
+		cart, err = ioutil.ReadFile(cartFilename)
+		dieIf(err)
+	}
 
-	emu := segmago.NewEmulator(cart)
+	bios := []byte{}
+	if numArgs > 2 {
+		biosFilename := os.Args[2]
+		var err error
+		bios, err = ioutil.ReadFile(biosFilename)
+		dieIf(err)
+	}
+
+	emu := segmago.NewEmulator(cart, bios)
 
 	screenW := 256
 	screenH := 240
