@@ -327,13 +327,6 @@ func (v *vdp) renderScanline(y uint16) {
 		}
 	}
 
-	if v.MaskColumn0WithOverscanCol {
-		bdropCol := v.ColorRAM[16:][v.SMSBackdropColor]
-		for j := uint16(0); j < 8; j++ {
-			bgCol[j] = bdropCol
-		}
-	}
-
 	spriteListStorage := [8]sprite{}
 	spriteList := v.getSpritesForLine(spriteListStorage[:], y)
 	spriteHeight := v.getSpriteHeight()
@@ -343,6 +336,9 @@ func (v *vdp) renderScanline(y uint16) {
 		spriteCplanes := byte(0)
 		for i := range spriteList {
 			spriteX := spriteList[i].x
+			if v.ShiftSpritesLeft {
+				spriteX -= 8
+			}
 			if x >= spriteX && x < spriteX+spriteHeight {
 				sprite := spriteList[i]
 				colX, colY := x-sprite.x, y-sprite.y
@@ -358,6 +354,13 @@ func (v *vdp) renderScanline(y uint16) {
 			colors[x] = pal[spriteCplanes]
 		} else {
 			colors[x] = bgCol[x]
+		}
+	}
+
+	if v.MaskColumn0WithOverscanCol {
+		bdropCol := v.ColorRAM[16:][v.SMSBackdropColor]
+		for j := uint16(0); j < 8; j++ {
+			colors[j] = bdropCol
 		}
 	}
 
