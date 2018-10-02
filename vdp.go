@@ -332,35 +332,37 @@ func (v *vdp) renderScanline(y uint16) {
 	spriteHeight := v.getSpriteHeight()
 
 	colors := [256]byte{}
-	for x := uint16(0); x < 256; x++ {
-		spriteCplanes := byte(0)
-		for i := range spriteList {
-			spriteX := spriteList[i].x
-			if v.ShiftSpritesLeft {
-				spriteX -= 8
-			}
-			if x >= spriteX && x < spriteX+spriteHeight {
-				sprite := spriteList[i]
-				colX, colY := x-sprite.x, y-sprite.y
-				spriteCplanes = v.getSpriteCplanes(sprite, colX, colY)
-				if spriteCplanes != 0 {
-					break
+	if v.DisplayEnable {
+		for x := uint16(0); x < 256; x++ {
+			spriteCplanes := byte(0)
+			for i := range spriteList {
+				spriteX := spriteList[i].x
+				if v.ShiftSpritesLeft {
+					spriteX -= 8
+				}
+				if x >= spriteX && x < spriteX+spriteHeight {
+					sprite := spriteList[i]
+					colX, colY := x-sprite.x, y-sprite.y
+					spriteCplanes = v.getSpriteCplanes(sprite, colX, colY)
+					if spriteCplanes != 0 {
+						break
+					}
 				}
 			}
+
+			if spriteCplanes != 0 && !(bgPriority[x] && bgShow[x]) {
+				pal := v.ColorRAM[16:]
+				colors[x] = pal[spriteCplanes]
+			} else {
+				colors[x] = bgCol[x]
+			}
 		}
 
-		if spriteCplanes != 0 && !(bgPriority[x] && bgShow[x]) {
-			pal := v.ColorRAM[16:]
-			colors[x] = pal[spriteCplanes]
-		} else {
-			colors[x] = bgCol[x]
-		}
-	}
-
-	if v.MaskColumn0WithOverscanCol {
-		bdropCol := v.ColorRAM[16:][v.SMSBackdropColor]
-		for j := uint16(0); j < 8; j++ {
-			colors[j] = bdropCol
+		if v.MaskColumn0WithOverscanCol {
+			bdropCol := v.ColorRAM[16:][v.SMSBackdropColor]
+			for j := uint16(0); j < 8; j++ {
+				colors[j] = bdropCol
+			}
 		}
 	}
 
