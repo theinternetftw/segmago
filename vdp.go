@@ -39,14 +39,14 @@ type vdp struct {
 	SpriteOverflow        bool
 	SpriteCollision       bool
 
-	DisableScrollForRightSide bool
-	DisableScrollForTop       bool
-	MaskCol0WithOverscanCol   bool
-	LineInterruptEnable       bool
-	ShiftSpritesLeft          bool
-	RegM4                     bool
-	RegM2                     bool
-	TurnOffSync               bool
+	DisableVertScrollForRightSide bool
+	DisableHorizScrollForTop      bool
+	MaskColumn0WithOverscanCol    bool
+	LineInterruptEnable           bool
+	ShiftSpritesLeft              bool
+	RegM4                         bool
+	RegM2                         bool
+	TurnOffSync                   bool
 
 	DisplayEnable        bool
 	FrameInterruptEnable bool
@@ -171,13 +171,20 @@ func (v *vdp) getPatternCplanes(patternNum, x, y uint16) byte {
 	return palIdx
 }
 
-func (v *vdp) getTileColor(entry, x, y uint16) byte {
+func (v *vdp) getBGColor(entry uint16, cPlanes byte) byte {
+	palSel := entry >> 11 & 1
+
+	pal := v.ColorRAM[palSel*16:]
+	col := pal[cPlanes]
+	return col
+}
+
+func (v *vdp) getBGCPlanes(entry, x, y uint16) byte {
 	// TODO: xscrollFine, yscrollFine
 
 	patternNum := entry & 0x1ff
 	hFlip := entry>>9&1 > 0
 	vFlip := entry>>10&1 > 0
-	palSel := entry >> 11 & 1
 
 	if hFlip {
 		x = 7 - x
@@ -187,11 +194,7 @@ func (v *vdp) getTileColor(entry, x, y uint16) byte {
 	}
 
 	palIdx := v.getPatternCplanes(patternNum, x, y)
-
-	pal := v.ColorRAM[palSel*16:]
-	col := pal[palIdx]
-
-	return col
+	return palIdx
 }
 
 func (v *vdp) getRGB(vdpCol byte) (byte, byte, byte) {
@@ -276,28 +279,58 @@ func (v *vdp) getSpriteCplanes(sp sprite, x, y uint16) byte {
 
 func (v *vdp) renderScanline(y uint16) {
 
+	scrollY := v.ScrollY
+	scrollX := v.ScrollX
+
+	if v.DisableHorizScrollForTop && y < 16 {
+		scrollX = 0
+	}
+
 	tileY := y / 8
-	tileY += v.ScrollY / 8
+	scrolledTileY := (y + scrollY) / 8
 
 	lineHeight := v.getOnePastLastActiveLine()
 	if lineHeight == 192 {
-		for tileY > 27 {
-			tileY -= 28
+		for scrolledTileY >= 28 {
+			scrolledTileY -= 28
 		}
 	} else {
-		tileY &= 31
+		scrolledTileY &= 31
 	}
 
-	tileBGPriority := [32]bool{}
+	bgPriority := [256]bool{}
+	bgShow := [256]bool{}
 	bgCol := [256]byte{}
 	for i := uint16(0); i < 32; i++ {
-		tileX := (i - v.ScrollX/8) & 31
-		entry := v.getNameTableEntry(tileX, tileY)
-		tileBGPriority[i] = entry&0x1000 > 0
+
+		tileX := (i - scrollX/8) & 31
+
+		var entry uint16
+		if v.DisableVertScrollForRightSide && i >= 24 {
+			entry = v.getNameTableEntry(tileX, tileY)
+		} else {
+			entry = v.getNameTableEntry(tileX, scrolledTileY)
+		}
+
 		for j := uint16(0); j < 8; j++ {
-			col := v.getTileColor(entry, j, y&7)
-			pX := byte(i*8 + j)
-			bgCol[pX] = col
+			// TODO: set color to backdrop on pX wrap
+			pX := i*8 + j + scrollX&7
+			if pX >= 256 {
+				pX -= 256
+				bgCol[pX] = v.ColorRAM[16:][v.SMSBackdropColor]
+			} else {
+				cPlanes := v.getBGCPlanes(entry, j, (y+scrollY)&7)
+				bgShow[pX] = cPlanes != 0
+				bgPriority[pX] = entry&0x1000 > 0
+				bgCol[pX] = v.getBGColor(entry, cPlanes)
+			}
+		}
+	}
+
+	if v.MaskColumn0WithOverscanCol {
+		bdropCol := v.ColorRAM[16:][v.SMSBackdropColor]
+		for j := uint16(0); j < 8; j++ {
+			bgCol[j] = bdropCol
 		}
 	}
 
@@ -305,24 +338,32 @@ func (v *vdp) renderScanline(y uint16) {
 	spriteList := v.getSpritesForLine(spriteListStorage[:], y)
 	spriteHeight := v.getSpriteHeight()
 
+	colors := [256]byte{}
 	for x := uint16(0); x < 256; x++ {
-		bg := bgCol[x]
-		r, g, b := v.getRGB(bg)
-		v.drawColor(x, y, r, g, b)
+		spriteCplanes := byte(0)
 		for i := range spriteList {
 			spriteX := spriteList[i].x
 			if x >= spriteX && x < spriteX+spriteHeight {
 				sprite := spriteList[i]
 				colX, colY := x-sprite.x, y-sprite.y
-				spriteCplanes := v.getSpriteCplanes(sprite, colX, colY)
+				spriteCplanes = v.getSpriteCplanes(sprite, colX, colY)
 				if spriteCplanes != 0 {
-					pal := v.ColorRAM[16:]
-					r, g, b := v.getRGB(pal[spriteCplanes])
-					v.drawColor(x, y, r, g, b)
 					break
 				}
 			}
 		}
+
+		if spriteCplanes != 0 && !(bgPriority[x] && bgShow[x]) {
+			pal := v.ColorRAM[16:]
+			colors[x] = pal[spriteCplanes]
+		} else {
+			colors[x] = bgCol[x]
+		}
+	}
+
+	for x := uint16(0); x < 256; x++ {
+		r, g, b := v.getRGB(colors[x])
+		v.drawColor(x, y, r, g, b)
 	}
 }
 
@@ -366,9 +407,9 @@ func (v *vdp) setReg(regNum byte, val byte) {
 	switch regNum {
 	case 0:
 		boolsFromByte(val,
-			&v.DisableScrollForRightSide,
-			&v.DisableScrollForTop,
-			&v.MaskCol0WithOverscanCol,
+			&v.DisableVertScrollForRightSide,
+			&v.DisableHorizScrollForTop,
+			&v.MaskColumn0WithOverscanCol,
 			&v.LineInterruptEnable,
 			&v.ShiftSpritesLeft,
 			&v.RegM4,
