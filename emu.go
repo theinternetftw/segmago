@@ -33,7 +33,7 @@ func NewEmulator(cart, bios []byte) Emulator {
 // A pre-sized buffer must be provided, which is returned resized
 // if the buffer was less full than the length requested.
 func (emu *emuState) ReadSoundBuffer(toFill []byte) []byte {
-	return []byte{}
+	return emu.SN76489.buffer.read(toFill)
 }
 
 // Framebuffer returns the current state of the lcd screen

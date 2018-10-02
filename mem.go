@@ -195,11 +195,7 @@ func (emu *emuState) out(addr uint16, val byte) {
 			emu.setIOControlReg(val)
 		}
 	} else if addr < 0x80 {
-		if addr&1 == 0 {
-			//errOut(fmt.Sprintf("sound not yet impled, got OUT 0x%02x, 0x%02x", addr, val))
-		} else {
-			//errOut(fmt.Sprintf("sound not yet impled, got OUT 0x%02x, 0x%02x", addr, val))
-		}
+		emu.SN76489.sendByte(val)
 	} else if addr < 0xc0 {
 		if addr&1 == 0 {
 			//fmt.Printf("write data port 0x%02x\n", val)

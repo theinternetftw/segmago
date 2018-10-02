@@ -12,7 +12,8 @@ type emuState struct {
 
 	Input Input
 
-	VDP vdp
+	VDP     vdp
+	SN76489 sn76489
 
 	ResetPressed bool
 
@@ -119,6 +120,8 @@ func newState(cart, bios []byte) *emuState {
 	state.VDP.LineInterruptEnable = true
 	state.VDP.FrameInterruptEnable = true
 
+	state.SN76489.init()
+
 	return &state
 }
 
@@ -144,7 +147,9 @@ func (emu *emuState) runCycles(numCycles uint) {
 	for i := uint(0); i < numCycles; i++ {
 		emu.Cycles++
 		emu.VDP.runCycle()
+		emu.SN76489.runCycle()
 	}
+
 	emu.CPU.IRQ = (emu.VDP.LineInterruptEnable && emu.VDP.LineInterruptPending) ||
 		(emu.VDP.FrameInterruptEnable && emu.VDP.FrameInterruptPending)
 }
