@@ -156,7 +156,8 @@ func (emu *emuState) in(addr uint16) byte {
 	addr &= 0xff // sms ignores upper byte
 	var val byte
 	if addr < 0x40 {
-		val = 0xff // right for SMS2, SMS has weird bus stuff
+		// val = 0xff // right for SMS2, SMS has weird bus stuff
+		val = 0 // more compatible?, some games try to "read" from mem ctrl port
 	} else if addr < 0x80 {
 		if addr&1 == 0 {
 			val = emu.VDP.readVCounter()
