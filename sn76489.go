@@ -67,7 +67,9 @@ type sound struct {
 	Counter uint16
 	Output  byte
 
-	IsNoise bool
+	IsNoise    bool
+	NoiseClock bool
+	LFSR       uint16
 }
 
 func (s *sn76489) init() {
@@ -87,7 +89,7 @@ func (s *sn76489) runCycle() {
 
 		if s.Clock == 0 {
 			for i := range s.Sounds {
-				s.Sounds[i].runCycle()
+				s.runSoundCycle(&s.Sounds[i])
 			}
 		}
 		s.Clock = (s.Clock + 1) & 0x0f
@@ -126,24 +128,37 @@ func (s *sn76489) runCycle() {
 	}
 }
 
-func (s *sound) runCycle() {
-	if s.IsNoise {
-	} else {
-		s.Counter--
-		if s.Counter == 0 {
-			s.Counter = s.Data
-			s.Output ^= 1
+func (s *sn76489) runSoundCycle(snd *sound) {
+	if snd.IsNoise {
+		snd.Counter--
+		if snd.Counter == 0 {
+			tbl := []uint16{
+				0x10, 0x20, 0x40, s.Sounds[2].Data,
+			}
+			snd.Counter = tbl[snd.Data&3]
+			snd.NoiseClock = !snd.NoiseClock
+			if snd.NoiseClock {
+				snd.Output = byte(snd.LFSR & 1)
+				// TODO: LFSR variants (e.g. bbc micro has 15-bit LFSR, taps bits 0 and 1)
+				var newBit uint16
+				if snd.Data&0x04 > 0 {
+					newBit = ((snd.LFSR & 1) ^ (snd.LFSR >> 3)) & 1
+				} else {
+					newBit = snd.LFSR & 1
+				}
+				snd.LFSR >>= 1
+				snd.LFSR |= newBit << 15
+			}
 		}
-		if s.Data == 0 || s.Data == 1 {
-			s.Output = 1
-		}
-	}
-}
-
-func (s *sound) setCounterFromData() {
-	if s.IsNoise {
 	} else {
-		s.Counter = s.Data
+		snd.Counter--
+		if snd.Counter == 0 {
+			snd.Counter = snd.Data
+			snd.Output ^= 1
+		}
+		if snd.Data == 0 || snd.Data == 1 {
+			snd.Output = 1
+		}
 	}
 }
 
@@ -155,6 +170,7 @@ func (s *sn76489) sendByte(b byte) {
 		if s.LatchIsForData {
 			s.Sounds[i].Data &^= 0x0f
 			s.Sounds[i].Data |= uint16(b & 0x0f)
+			s.Sounds[i].LFSR = 0x8000
 		} else {
 			s.Sounds[i].Volume &^= 0x0f
 			s.Sounds[i].Volume |= b & 0x0f
@@ -166,6 +182,7 @@ func (s *sn76489) sendByte(b byte) {
 			if latch.IsNoise {
 				latch.Data &^= 0x0f
 				latch.Data |= uint16(b & 0x0f)
+				latch.LFSR = 0x8000
 			} else {
 				latch.Data &^= 0x3f0
 				latch.Data |= uint16(b&0x3f) << 4
