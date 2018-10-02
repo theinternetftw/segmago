@@ -26,7 +26,9 @@ type emuState struct {
 	TRAInOutputMode bool
 	TRBInOutputMode bool
 
-	isDomesticConsole bool
+	IsDomesticConsole bool
+
+	IoDisabled bool
 
 	Cycles uint
 }
@@ -41,6 +43,14 @@ func (emu *emuState) setMemControlReg(val byte) {
 	} else {
 		fmt.Println("set to null storage")
 		emu.Mem.SelectedMem = emu.Mem.NullStorage
+	}
+
+	if val&0x04 == 0 {
+		emu.IoDisabled = false
+		fmt.Println("IO Enabled")
+	} else {
+		emu.IoDisabled = true
+		fmt.Println("IO Disabled")
 	}
 }
 
@@ -179,14 +189,14 @@ func (emu *emuState) readJoyReg1() byte {
 	// TODO: both export and domestic console differences
 	// (this is export mode, domestic returns 0x00)
 	if emu.THBInOutputMode {
-		if emu.isDomesticConsole {
+		if emu.IsDomesticConsole {
 			thB = false
 		} else { // export
 			thB = emu.THBOutput
 		}
 	}
 	if emu.THAInOutputMode {
-		if emu.isDomesticConsole {
+		if emu.IsDomesticConsole {
 			thB = false
 		} else { // export
 			thA = emu.THAOutput

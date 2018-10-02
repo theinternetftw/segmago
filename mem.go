@@ -171,7 +171,9 @@ func (emu *emuState) in(addr uint16) byte {
 			val = emu.VDP.readControlPort()
 		}
 	} else { // >= 0xc0
-		if addr&1 == 0 {
+		if emu.IoDisabled {
+			val = 0xff
+		} else if addr&1 == 0 {
 			val = emu.readJoyReg0()
 		} else {
 			val = emu.readJoyReg1()
