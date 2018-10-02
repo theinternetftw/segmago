@@ -94,9 +94,9 @@ func newState(cart []byte) *emuState {
 		state.Mem.RAM[i] = 0xff
 	}
 
-	state.Mem.Page0Bank = 0
-	state.Mem.Page1Bank = 1
-	state.Mem.Page2Bank = 2
+	state.Mem.Page0Bank = state.Mem.wrapROMBankNum(0)
+	state.Mem.Page1Bank = state.Mem.wrapROMBankNum(1)
+	state.Mem.Page2Bank = state.Mem.wrapROMBankNum(2)
 
 	state.VDP.LineInterruptEnable = true
 	state.VDP.FrameInterruptEnable = true

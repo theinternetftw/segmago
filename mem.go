@@ -24,13 +24,13 @@ func (m *mem) setPagingControlReg(b byte) {
 	assert(b&0x10 == 0, "cart RAM over internal RAM mode not yet implemented")
 }
 
-func (m *mem) wrapROMBankNum(bankNum byte) byte {
+func (m *mem) wrapROMBankNum(bankNum byte) uint {
 	// should always be a power of two - 1
 	if len(m.rom) <= 16*1024 {
 		return 0
 	}
 	maxBankNum := byte((len(m.rom) / (16 * 1024)) - 1)
-	return bankNum & maxBankNum
+	return uint(bankNum & maxBankNum)
 }
 
 func (emu *emuState) read(addr uint16) byte {
@@ -86,13 +86,13 @@ func (emu *emuState) write(addr uint16, val byte) {
 		if addr == 0xfffc {
 			m.setPagingControlReg(val)
 		} else if addr == 0xfffd {
-			m.Page0Bank = uint(m.wrapROMBankNum(val))
+			m.Page0Bank = m.wrapROMBankNum(val)
 			//fmt.Println("set bank0:", m.Page0Bank)
 		} else if addr == 0xfffe {
-			m.Page1Bank = uint(m.wrapROMBankNum(val))
+			m.Page1Bank = m.wrapROMBankNum(val)
 			//fmt.Println("set bank1:", m.Page1Bank)
 		} else if addr == 0xffff {
-			m.Page2Bank = uint(m.wrapROMBankNum(val))
+			m.Page2Bank = m.wrapROMBankNum(val)
 			//fmt.Println("set bank2:", m.Page2Bank)
 		}
 	}
