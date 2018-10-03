@@ -356,10 +356,12 @@ func (v *vdp) renderScanline(y uint16) {
 				if x >= spriteX && x < spriteX+spriteHeight {
 					sprite := spriteList[i]
 					colX, colY := x-sprite.x, y-sprite.y
-					spriteCplanes = v.getSpriteCplanes(sprite, colX, colY)
-					if spriteCplanes != 0 {
+					cPlanes := v.getSpriteCplanes(sprite, colX, colY)
+					if spriteCplanes != 0 && cPlanes != 0 {
+						v.SpriteCollision = true
 						break
 					}
+					spriteCplanes = cPlanes
 				}
 			}
 
