@@ -437,10 +437,18 @@ func (v *vdp) runCycle() {
 }
 
 func (v *vdp) updateMode() {
-	assert(v.RegM4, "non-mode-4 modes not yet implemented")
-	assert(v.RegM2, "M2 not being set is outside of sega doc'd sms spec and not yet implemented")
-	assert(!v.RegM1, "modes where M1 is set are not yet implemented")
-	assert(!v.RegM3, "modes where M3 is set are not yet implemented")
+	m4, m3, m2, m1 := v.RegM4, v.RegM3, v.RegM2, v.RegM1
+	if m4 && !m3 && !m2 && !m1 {
+		v.ModeHeight = 192 // normal Mode 4
+	} else if m4 && !m3 && m2 && !m1 {
+		v.ModeHeight = 192 // normal Mode 4
+	} else if m4 && m3 && !m2 && !m1 {
+		v.ModeHeight = 192 // normal Mode 4
+	} else if m4 && m3 && m2 && m1 {
+		v.ModeHeight = 192 // normal Mode 4
+	} else {
+		errOut("Unimplemented mode!", v.RegM1, v.RegM2, v.RegM3, v.RegM4)
+	}
 }
 
 func (v *vdp) setReg(regNum byte, val byte) {
