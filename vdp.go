@@ -343,11 +343,13 @@ func (v *vdp) renderScanline(y uint16) {
 					sprite := spriteList[i]
 					colX, colY := x-sprite.x, y-sprite.y
 					cPlanes := v.getSpriteCplanes(sprite, colX, colY)
-					if spriteCplanes != 0 && cPlanes != 0 {
+
+					if spriteCplanes == 0 {
+						spriteCplanes = cPlanes
+					} else if cPlanes != 0 {
 						v.SpriteCollision = true
 						break
 					}
-					spriteCplanes = cPlanes
 				}
 			}
 
@@ -545,5 +547,7 @@ func (v *vdp) readControlPort() byte {
 	v.OnSecondControlByte = false
 	v.LineInterruptPending = false
 	v.FrameInterruptPending = false
+	v.SpriteOverflow = false
+	v.SpriteCollision = false
 	return val
 }
