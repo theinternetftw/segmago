@@ -156,8 +156,38 @@ func (emu *emuState) in(addr uint16) byte {
 	addr &= 0xff // sms ignores upper byte
 	var val byte
 	if addr < 0x40 {
-		// val = 0xff // right for SMS2, SMS has weird bus stuff
-		val = 0 // more compatible?, some games try to "read" from mem ctrl port
+		if emu.IsGameGear {
+			switch addr {
+			case 0:
+				val = byteFromBools(
+					!emu.Input.Joypad1.Start,
+					true,  // isExportedConsole
+					false, // isPALConsole
+					false,
+					false,
+					false,
+					false,
+					false,
+				)
+			case 1:
+				return 0x7f
+			case 2:
+				return 0xff
+			case 3:
+				return 0x00
+			case 4:
+				return 0xff
+			case 5:
+				return 0x00
+			case 6:
+				return emu.SN76489.StereoMixerReg
+			default:
+				return 0xff
+			}
+		} else {
+			// val = 0xff // right for SMS2, SMS has weird bus stuff
+			val = 0 // more compatible?, some games try to "read" from mem ctrl port
+		}
 	} else if addr < 0x80 {
 		if addr&1 == 0 {
 			val = emu.VDP.readVCounter()
@@ -172,12 +202,23 @@ func (emu *emuState) in(addr uint16) byte {
 			val = emu.VDP.readControlPort()
 		}
 	} else { // >= 0xc0
-		if emu.IoDisabled {
-			val = 0xff
-		} else if addr&1 == 0 {
-			val = emu.readJoyReg0()
+		if emu.IsGameGear {
+			switch addr {
+			case 0xc0, 0xdc:
+				val = emu.readJoyReg0()
+			case 0xc1, 0xdd:
+				val = emu.readJoyReg1()
+			default:
+				val = 0xff
+			}
 		} else {
-			val = emu.readJoyReg1()
+			if emu.IoDisabled {
+				val = 0xff
+			} else if addr&1 == 0 {
+				val = emu.readJoyReg0()
+			} else {
+				val = emu.readJoyReg1()
+			}
 		}
 	}
 	//fmt.Printf("IN: %04x, %02x\n", addr, val)
@@ -189,7 +230,11 @@ func (emu *emuState) out(addr uint16, val byte) {
 	addr &= 0xff // sms ignores upper byte
 	//fmt.Printf("got OUT: 0x%02x, 0x%02x\n", addr, val)
 	if addr < 0x40 {
-		if addr&1 == 0 {
+		if emu.IsGameGear && addr <= 6 {
+			if addr == 6 {
+				emu.SN76489.StereoMixerReg = val
+			}
+		} else if addr&1 == 0 {
 			emu.setMemControlReg(val)
 		} else {
 			emu.setIOControlReg(val)
@@ -199,7 +244,7 @@ func (emu *emuState) out(addr uint16, val byte) {
 	} else if addr < 0xc0 {
 		if addr&1 == 0 {
 			//fmt.Printf("write data port 0x%02x\n", val)
-			emu.VDP.writeDataPort(val)
+			emu.VDP.writeDataPort(val, emu.IsGameGear)
 		} else {
 			//fmt.Printf("write control port 0x%02x\n", val)
 			emu.VDP.writeControlPort(val)

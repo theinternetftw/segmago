@@ -31,27 +31,33 @@ type emuState struct {
 
 	IoDisabled bool
 
+	IsGameGear bool
+
 	Cycles uint
 }
 
 func (emu *emuState) setMemControlReg(val byte) {
-	if val&0x40 == 0 {
-		fmt.Println("set to cart storage")
-		emu.Mem.SelectedMem = emu.Mem.CartStorage
-	} else if val&0x08 == 0 {
-		fmt.Println("set to bios storage")
-		emu.Mem.SelectedMem = emu.Mem.BIOSStorage
+	if emu.IsGameGear {
+		// TODO: support enabling the tiny bios in the first k?
 	} else {
-		fmt.Println("set to null storage")
-		emu.Mem.SelectedMem = emu.Mem.NullStorage
-	}
+		if val&0x40 == 0 {
+			fmt.Println("set to cart storage")
+			emu.Mem.SelectedMem = emu.Mem.CartStorage
+		} else if val&0x08 == 0 {
+			fmt.Println("set to bios storage")
+			emu.Mem.SelectedMem = emu.Mem.BIOSStorage
+		} else {
+			fmt.Println("set to null storage")
+			emu.Mem.SelectedMem = emu.Mem.NullStorage
+		}
 
-	if val&0x04 == 0 {
-		emu.IoDisabled = false
-		fmt.Println("IO Enabled")
-	} else {
-		emu.IoDisabled = true
-		fmt.Println("IO Disabled")
+		if val&0x04 == 0 {
+			emu.IoDisabled = false
+			fmt.Println("IO Enabled")
+		} else {
+			emu.IoDisabled = true
+			fmt.Println("IO Disabled")
+		}
 	}
 }
 
@@ -172,6 +178,7 @@ type Joypad struct {
 	A     bool
 	B     bool
 	Fire  bool // for lightgun
+	Start bool // for Game Gear
 }
 
 func (emu *emuState) readJoyReg0() byte {

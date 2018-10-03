@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -36,7 +37,14 @@ func main() {
 		dieIf(err)
 	}
 
-	emu := segmago.NewEmulator(cart, bios)
+	var emu segmago.Emulator
+	if strings.HasSuffix(cartFilename, ".gg") {
+		bios = []byte{} // no bios in gg yet
+		emu = segmago.NewEmulatorGG(cart, bios)
+	} else {
+		emu = segmago.NewEmulatorSMS(cart, bios)
+	}
+
 
 	screenW := 256
 	screenH := 240
@@ -94,6 +102,7 @@ func startEmu(filename string, window *platform.WindowState, emu segmago.Emulato
 				newInput.Joypad1.Right = cid(key.CodeD)
 				newInput.Joypad1.A = cid(key.CodeJ)
 				newInput.Joypad1.B = cid(key.CodeK)
+				newInput.Joypad1.Start = cid(key.CodeY)
 			}
 			window.Mutex.Unlock()
 

@@ -24,9 +24,16 @@ func (emu *emuState) LoadSnapshot(snapBytes []byte) (Emulator, error) {
 	return nil, fmt.Errorf("snapshots not implemented yet")
 }
 
-// NewEmulator creates an emulation session
-func NewEmulator(cart, bios []byte) Emulator {
+// NewEmulatorSMS creates a Sega Master System emulation session
+func NewEmulatorSMS(cart, bios []byte) Emulator {
 	return newState(cart, bios)
+}
+
+// NewEmulatorGG creates a Game Gear emulation session
+func NewEmulatorGG(cart, bios []byte) Emulator {
+	state := newState(cart, bios)
+	state.IsGameGear = true
+	return state
 }
 
 // ReadSoundBuffer returns a 44100hz * 16bit * 2ch sound buffer.

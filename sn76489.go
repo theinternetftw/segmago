@@ -16,11 +16,15 @@ type sn76489 struct {
 
 	ClocksPerSample int
 
-	SampleSum      int
+	SampleSums     [4]int
 	SampleSumCount int
 
-	lastOutput          float32
-	lastCorrectedOutput float32
+	lastOutputLeft           float32
+	lastOutputRight          float32
+	lastCorrectedOutputLeft  float32
+	lastCorrectedOutputRight float32
+
+	StereoMixerReg byte
 
 	Clock int
 }
@@ -81,6 +85,8 @@ func (s *sn76489) init() {
 
 	f := ntscClocksPerSecond / samplesPerSecond
 	s.ClocksPerSample = int(f)
+
+	s.StereoMixerReg = 0xff
 }
 
 func (s *sn76489) runCycle() {
@@ -94,35 +100,59 @@ func (s *sn76489) runCycle() {
 		}
 		s.Clock = (s.Clock + 1) & 0x0f
 
-		sum := 0
 		for i := range s.Sounds {
 			sound := &s.Sounds[i]
-			sum += int(sound.Output * (15 - sound.Volume))
+			s.SampleSums[i] += int(sound.Output * (15 - sound.Volume))
 		}
-
-		s.SampleSum += sum
 		s.SampleSumCount++
+
 		if s.SampleSumCount >= s.ClocksPerSample {
 
-			sum := float32(s.SampleSum) / 60.0 // 4 channels, 15 vol levels
+			sumLeft, numLeft := 0, 0
+			sumRight, numRight := 0, 0
+			for i := range s.SampleSums {
+				if s.StereoMixerReg>>uint(i)&1 > 0 {
+					sumLeft += s.SampleSums[i]
+					numLeft++
+				}
+				if s.StereoMixerReg>>uint(4+i)&1 > 0 {
+					sumRight += s.SampleSums[i]
+					numRight++
+				}
+			}
 
-			output := sum / float32(s.SampleSumCount)
+			outLeft := float32(sumLeft)
+			if outLeft > 0 {
+				outLeft /= 15.0 * float32(numLeft) // 15 vol levels
+				outLeft /= float32(s.SampleSumCount)
+			}
 
-			s.SampleSum = 0
+			outRight := float32(sumRight)
+			if outRight > 0 {
+				outRight /= 15.0 * float32(numRight) // 15 vol levels
+				outRight /= float32(s.SampleSumCount)
+			}
+
+			s.SampleSums = [4]int{0, 0, 0, 0}
 			s.SampleSumCount = 0
 
 			// dc blocker to center waveform
-			correctedOutput := output - s.lastOutput + 0.995*s.lastCorrectedOutput
-			s.lastCorrectedOutput = correctedOutput
-			s.lastOutput = output
-			output = correctedOutput
+			correctedOutputLeft := outLeft - s.lastOutputLeft + 0.995*s.lastCorrectedOutputLeft
+			s.lastCorrectedOutputLeft = correctedOutputLeft
+			s.lastOutputLeft = outLeft
+			outLeft = correctedOutputLeft
 
-			sample := int16(output * 32767.0)
-			sampleLo := byte(sample & 0xff)
-			sampleHi := byte(sample >> 8)
+			// dc blocker to center waveform
+			correctedOutputRight := outRight - s.lastOutputRight + 0.995*s.lastCorrectedOutputRight
+			s.lastCorrectedOutputRight = correctedOutputRight
+			s.lastOutputRight = outRight
+			outRight = correctedOutputRight
+
+			sampleLeft := int16(outLeft * 32767.0)
+			sampleRight := int16(outRight * 32767.0)
 			s.buffer.write([]byte{
-				sampleLo, sampleHi,
-				sampleLo, sampleHi,
+				byte(sampleLeft & 0xff), byte(sampleLeft >> 8),
+				byte(sampleRight & 0xff), byte(sampleRight >> 8),
 			})
 		}
 	}
