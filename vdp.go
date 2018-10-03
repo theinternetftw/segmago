@@ -8,6 +8,8 @@ type vdp struct {
 	AddrReg             uint16
 	CodeReg             byte
 
+	ModeHeight uint16
+
 	VRAM [16 * 1024]byte
 
 	TMS9918NameTableAddr uint16
@@ -63,8 +65,6 @@ type vdp struct {
 	VCounter                byte
 	VCounterFixupsThisFrame byte
 
-	ScreenMode byte
-
 	ScreenX uint16
 	ScreenY uint16
 
@@ -105,45 +105,33 @@ func (v *vdp) readDataPort() byte {
 	return val
 }
 
-var activeLineTable = [16]uint16{
-	192, 192, 192, 192,
-	192, 192, 192, 192,
-	192, 192, 192, 224,
-	192, 192, 240, 224,
-}
-
-func (v *vdp) getOnePastLastActiveLine() uint16 {
-	return activeLineTable[v.ScreenMode]
-}
-
 func (v *vdp) incVCounter() {
-	onePastLastLine := v.getOnePastLastActiveLine()
 	// TODO: fixups for PAL
-	if onePastLastLine == 192 {
+	switch v.ModeHeight {
+	case 192:
 		if v.VCounterFixupsThisFrame == 0 && v.VCounter == 0xdb {
 			v.VCounterFixupsThisFrame++
 			v.VCounter = 0xd5
 		} else {
 			v.VCounter++
 		}
-	} else if onePastLastLine == 224 {
+	case 224:
 		if v.VCounterFixupsThisFrame == 0 && v.VCounter == 0xeb {
 			v.VCounterFixupsThisFrame++
 			v.VCounter = 0xe5
 		} else {
 			v.VCounter++
 		}
-	} else { // 240
 	}
 }
+
 func (v *vdp) atLastVCounter() bool {
-	onePastLastLine := v.getOnePastLastActiveLine()
 	// TODO: fixups for PAL
-	if onePastLastLine == 192 {
+	switch v.ModeHeight {
+	case 192:
 		return v.VCounterFixupsThisFrame == 1 && v.VCounter == 0x00
-	} else if onePastLastLine == 224 {
+	case 224:
 		return v.VCounterFixupsThisFrame == 1 && v.VCounter == 0x00
-	} else { // 240
 	}
 	return false
 }
@@ -237,12 +225,11 @@ func (v *vdp) getSpritesForLine(slist []sprite, y uint16) []sprite {
 	slist = slist[:0]
 
 	spriteHeight := v.getSpriteHeight()
-	lineHeight := v.getOnePastLastActiveLine()
 
 	numSprites := 0
 	for i := uint16(0); i < 64; i++ {
 		spriteY := uint16(v.VRAM[base+i]) + 1
-		if spriteY == 0xd1 && lineHeight == 192 {
+		if spriteY == 0xd1 && v.ModeHeight == 192 {
 			break
 		}
 		if y >= spriteY && y < spriteY+spriteHeight {
@@ -302,8 +289,7 @@ func (v *vdp) renderScanline(y uint16) {
 	tileY := y / 8
 	scrolledTileY := (y + scrollY) / 8
 
-	lineHeight := v.getOnePastLastActiveLine()
-	if lineHeight == 192 {
+	if v.ModeHeight == 192 {
 		for scrolledTileY >= 28 {
 			scrolledTileY -= 28
 		}
@@ -408,23 +394,31 @@ func (v *vdp) renderScanline(y uint16) {
 
 }
 
+func (v *vdp) init() {
+	v.ModeHeight = 192
+	v.RegM2 = true
+	v.RegM4 = true
+	v.LineInterruptEnable = true
+	v.FrameInterruptEnable = true
+}
+
 func (v *vdp) runCycle() {
+
 	v.ScreenX++
 	if v.ScreenX == 342 {
-		onePastLastLine := v.getOnePastLastActiveLine()
-		if v.ScreenY < onePastLastLine {
+		if v.ScreenY < v.ModeHeight {
 			v.renderScanline(v.ScreenY)
 		}
 		v.ScreenX = 0
 		v.ScreenY++
 		v.incVCounter()
-		if v.ScreenY <= onePastLastLine {
+		if v.ScreenY <= v.ModeHeight {
 			v.LineInterruptCounter--
 			if v.LineInterruptCounter == 0xff {
 				v.LineInterruptCounter = v.LineInterruptCounterSetReg
 				v.LineInterruptPending = true
 			}
-			if v.ScreenY == onePastLastLine {
+			if v.ScreenY == v.ModeHeight {
 				v.FrameInterruptPending = true
 				// TODO: match up vCounter and frame to border/blanking
 			}
@@ -438,6 +432,13 @@ func (v *vdp) runCycle() {
 			v.FlipRequested = true
 		}
 	}
+}
+
+func (v *vdp) updateMode() {
+	assert(v.RegM4, "non-mode-4 modes not yet implemented")
+	assert(v.RegM2, "M2 not being set is outside of sega doc'd sms spec and not yet implemented")
+	assert(!v.RegM1, "modes where M1 is set are not yet implemented")
+	assert(!v.RegM3, "modes where M3 is set are not yet implemented")
 }
 
 func (v *vdp) setReg(regNum byte, val byte) {
@@ -456,8 +457,7 @@ func (v *vdp) setReg(regNum byte, val byte) {
 			&v.RegM4,
 			&v.RegM2,
 			&v.TurnOffSync)
-		assert(v.RegM4, "non-mode-4 modes not yet implemented")
-		assert(v.RegM2, "M2 not being set is outside of sega doc'd sms spec and not yet implemented")
+		v.updateMode()
 
 	case 1:
 		boolsFromByte(val,
@@ -469,8 +469,7 @@ func (v *vdp) setReg(regNum byte, val byte) {
 			nil,
 			&v.LargeSprites,
 			&v.StretchedSprites)
-		assert(!v.RegM1, "modes where M1 is set are not yet implemented")
-		assert(!v.RegM3, "modes where M3 is set are not yet implemented")
+		v.updateMode()
 
 	case 2:
 		v.TMS9918NameTableAddr = uint16(val & 0x0f)

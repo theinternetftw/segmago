@@ -123,10 +123,8 @@ func newState(cart, bios []byte) *emuState {
 		state.Mem.RAM[i] = 0xff
 	}
 
-	state.VDP.LineInterruptEnable = true
-	state.VDP.FrameInterruptEnable = true
-
 	state.SN76489.init()
+	state.VDP.init()
 
 	return &state
 }
@@ -228,7 +226,7 @@ func (emu *emuState) readJoyReg1() byte {
 }
 
 func (emu *emuState) step() {
-	//	fmt.Println(emu.CPU.debugStatusLine())
+	//fmt.Println(emu.CPU.debugStatusLine())
 	emu.CPU.Step()
 }
 
