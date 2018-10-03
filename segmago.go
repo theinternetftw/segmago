@@ -81,12 +81,18 @@ func (emu *emuState) setIOControlReg(val byte) {
 
 	if emu.THBInOutputMode {
 		emu.THBOutput = THBOutputTry
+		if emu.THBOutput {
+			emu.VDP.updateHCounter()
+		}
 	}
 	if emu.TRBInOutputMode {
 		emu.TRBOutput = TRBOutputTry
 	}
 	if emu.THAInOutputMode {
 		emu.THAOutput = THAOutputTry
+		if emu.THAOutput {
+			emu.VDP.updateHCounter()
+		}
 	}
 	if emu.TRAInOutputMode {
 		emu.TRAOutput = TRAOutputTry

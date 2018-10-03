@@ -1,7 +1,5 @@
 package segmago
 
-import "fmt"
-
 type vdp struct {
 	framebuffer         [256 * 240 * 4]byte
 	OnSecondControlByte bool
@@ -64,6 +62,7 @@ type vdp struct {
 
 	VCounter                byte
 	VCounterFixupsThisFrame byte
+	HCounter                byte
 
 	ScreenX uint16
 	ScreenY uint16
@@ -71,6 +70,8 @@ type vdp struct {
 	FlipRequested bool
 
 	IsGameGear bool
+
+	CPUClock byte
 }
 
 func (v *vdp) writeDataPort(val byte, isGameGear bool) {
@@ -122,6 +123,8 @@ func (v *vdp) incVCounter() {
 		} else {
 			v.VCounter++
 		}
+	default:
+		errOut("incVCounter(): ModeHeight not implemented", v.ModeHeight)
 	}
 }
 
@@ -132,15 +135,20 @@ func (v *vdp) atLastVCounter() bool {
 		return v.VCounterFixupsThisFrame == 1 && v.VCounter == 0x00
 	case 224:
 		return v.VCounterFixupsThisFrame == 1 && v.VCounter == 0x00
+	default:
+		errOut("atLastVCounter(): ModeHeight not implemented", v.ModeHeight)
+		return false
 	}
-	return false
 }
 
 func (v *vdp) readVCounter() byte {
 	return v.VCounter
 }
 func (v *vdp) readHCounter() byte {
-	return byte(v.ScreenX >> 1)
+	return v.HCounter
+}
+func (v *vdp) updateHCounter() {
+	v.HCounter = byte(v.ScreenX >> 1)
 }
 
 func (v *vdp) drawColor(x, y uint16, r, g, b byte) {
@@ -406,32 +414,36 @@ func (v *vdp) init() {
 
 func (v *vdp) runCycle() {
 
-	v.ScreenX++
-	if v.ScreenX == 342 {
-		if v.ScreenY < v.ModeHeight {
-			v.renderScanline(v.ScreenY)
-		}
-		v.ScreenX = 0
-		v.ScreenY++
-		v.incVCounter()
-		if v.ScreenY <= v.ModeHeight {
-			v.LineInterruptCounter--
-			if v.LineInterruptCounter == 0xff {
+	v.CPUClock ^= 1
+	if v.CPUClock == 1 {
+		v.ScreenX++
+	} else {
+		v.ScreenX += 2
+		if v.ScreenX == 342 {
+			if v.ScreenY < v.ModeHeight {
+				v.renderScanline(v.ScreenY)
+			}
+			v.ScreenX = 0
+			v.ScreenY++
+			v.incVCounter()
+			if v.ScreenY <= v.ModeHeight {
+				v.LineInterruptCounter--
+				if v.LineInterruptCounter == 0xff {
+					v.LineInterruptCounter = v.LineInterruptCounterSetReg
+					v.LineInterruptPending = true
+				}
+				if v.ScreenY == v.ModeHeight {
+					v.FrameInterruptPending = true
+				}
+			} else {
 				v.LineInterruptCounter = v.LineInterruptCounterSetReg
-				v.LineInterruptPending = true
 			}
-			if v.ScreenY == v.ModeHeight {
-				v.FrameInterruptPending = true
-				// TODO: match up vCounter and frame to border/blanking
+			if v.atLastVCounter() {
+				v.ScreenY = 0
+				v.VCounter = 0
+				v.VCounterFixupsThisFrame = 0
+				v.FlipRequested = true
 			}
-		} else {
-			v.LineInterruptCounter = v.LineInterruptCounterSetReg
-		}
-		if v.atLastVCounter() {
-			v.ScreenY = 0
-			v.VCounter = 0
-			v.VCounterFixupsThisFrame = 0
-			v.FlipRequested = true
 		}
 	}
 }
@@ -453,7 +465,7 @@ func (v *vdp) updateMode() {
 
 func (v *vdp) setReg(regNum byte, val byte) {
 	if regNum >= 11 {
-		fmt.Println("big reg num", regNum)
+		//fmt.Println("big reg num", regNum)
 		return
 	}
 	switch regNum {

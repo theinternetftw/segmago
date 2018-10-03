@@ -192,7 +192,6 @@ func (emu *emuState) in(addr uint16) byte {
 		if addr&1 == 0 {
 			val = emu.VDP.readVCounter()
 		} else {
-			// TODO: add latch, only update value when lightgun pin changes
 			val = emu.VDP.readHCounter()
 		}
 	} else if addr < 0xc0 {
