@@ -42,13 +42,13 @@ func (emu *emuState) setMemControlReg(val byte) {
 	} else {
 		if val&0x40 == 0 {
 			fmt.Println("set to cart storage")
-			emu.Mem.SelectedMem = emu.Mem.CartStorage
+			emu.Mem.SelectedMem = &emu.Mem.CartStorage
 		} else if val&0x08 == 0 {
 			fmt.Println("set to bios storage")
-			emu.Mem.SelectedMem = emu.Mem.BIOSStorage
+			emu.Mem.SelectedMem = &emu.Mem.BIOSStorage
 		} else {
 			fmt.Println("set to null storage")
-			emu.Mem.SelectedMem = emu.Mem.NullStorage
+			emu.Mem.SelectedMem = &emu.Mem.NullStorage
 		}
 
 		if val&0x04 == 0 {

@@ -7,6 +7,8 @@ import (
 
 	"golang.org/x/mobile/event/key"
 
+	"bytes"
+	"compress/gzip"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -58,9 +60,31 @@ func startEmu(filename string, window *platform.WindowState, emu segmago.Emulato
 
 	// FIXME: settings are for debug right now
 	lastFlipTime := time.Now()
+	lastSaveTime := time.Now()
 	lastInputPollTime := time.Now()
 
 	snapshotPrefix := filename + ".snapshot"
+
+	saveFilename := filename + ".sav"
+	if saveFile, err := ioutil.ReadFile(saveFilename); err == nil {
+
+		inBuf := bytes.NewBuffer(saveFile)
+		gzipReader, err := gzip.NewReader(inBuf)
+
+		var outBuf []byte
+		if err == nil {
+			outBuf, err = ioutil.ReadAll(gzipReader)
+		}
+
+		if err == nil {
+			err = emu.SetCartRAM(outBuf)
+		}
+		if err != nil {
+			fmt.Println("could not load savefile", err)
+		} else {
+			fmt.Println("loaded save!")
+		}
+	}
 
 	audio, err := platform.OpenAudioBuffer(4, 4096, 44100, 16, 2)
 	workingAudioBuffer := make([]byte, audio.BufferSize())
@@ -165,7 +189,7 @@ func startEmu(filename string, window *platform.WindowState, emu segmago.Emulato
 			window.Mutex.Unlock()
 
 			frameCount++
-			if frameCount & 0xff == 0 {
+			if frameCount & 0x1ff == 0 {
 				fmt.Printf("maxRTime %.4f, maxFTime %.4f\n", maxRDiff.Seconds(), maxFDiff)
 				maxRDiff = 0
 				maxFDiff = 0
@@ -193,6 +217,22 @@ func startEmu(filename string, window *platform.WindowState, emu segmago.Emulato
 			}
 
 			lastFlipTime = time.Now()
+
+			if time.Now().Sub(lastSaveTime) > 10*time.Second {
+				if emu.CartRAMModified() {
+					ram := emu.GetCartRAM()
+					if len(ram) > 0 {
+						buf := bytes.NewBuffer([]byte{})
+						writer := gzip.NewWriter(buf)
+						writer.Write(ram)
+						writer.Close()
+
+						ioutil.WriteFile(saveFilename, buf.Bytes(), os.FileMode(0644))
+						lastSaveTime = time.Now()
+						fmt.Println("game saved!")
+					}
+				}
+			}
 		}
 	}
 }

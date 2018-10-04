@@ -3,8 +3,9 @@ package segmago
 import "fmt"
 
 type storage struct {
-	rom     []byte
-	CartRAM [32 * 1024]byte
+	rom             []byte
+	CartRAM         [32 * 1024]byte
+	CartRAMModified bool
 
 	CartRAMPagedIn bool
 	PageRAMBank    uint
@@ -17,7 +18,7 @@ type storage struct {
 type mem struct {
 	RAM [8192]byte
 
-	SelectedMem storage
+	SelectedMem *storage
 	BIOSStorage storage
 	CartStorage storage
 	NullStorage storage
@@ -34,9 +35,9 @@ func (m *mem) init(cart, bios []byte) {
 	m.NullStorage.init(make([]byte, 16*1024))
 
 	if len(bios) > 0 {
-		m.SelectedMem = m.BIOSStorage
+		m.SelectedMem = &m.BIOSStorage
 	} else {
-		m.SelectedMem = m.CartStorage
+		m.SelectedMem = &m.CartStorage
 	}
 }
 
@@ -48,11 +49,13 @@ func (s *storage) init(rom []byte) {
 }
 
 func (s *storage) setPagingControlReg(b byte) {
-	//fmt.Printf("PageCtrl: 0x%02x\n", b)
 	s.CartRAMPagedIn = b&8 > 0
 	s.PageRAMBank = uint((b & 4) >> 2)
-	//fmt.Printf("\tRAM Paged In: %v\n", s.CartRAMPagedIn)
-	//fmt.Printf("\tRAM Bank: %v\n", s.PageRAMBank)
+	// if b != 0x80 {
+	// 	fmt.Printf("PageCtrl: 0x%02x\n", b)
+	// 	fmt.Printf("\tRAM Paged In: %v\n", s.CartRAMPagedIn)
+	// 	fmt.Printf("\tRAM Bank: %v\n", s.PageRAMBank)
+	// }
 	assert(b&0x10 == 0, "cart RAM over internal RAM mode not yet implemented")
 }
 
@@ -83,7 +86,7 @@ func (s *storage) read(addr uint16) byte {
 		if s.CartRAMPagedIn {
 			bank := s.PageRAMBank
 			computedAddr := bank*0x4000 + uint(addr-0x8000)
-			//fmt.Println("RAM BANK", bank, "addr", addr, "computed", computedAddr)
+			//fmt.Println("CART RAM READ BANK", bank, "addr", addr, "computed", computedAddr)
 			val = s.CartRAM[computedAddr]
 		} else {
 			bank := s.Page2Bank
@@ -105,6 +108,8 @@ func (s *storage) write(addr uint16, val byte) {
 			bank := s.PageRAMBank
 			computedAddr := bank*0x4000 + uint(addr-0x8000)
 			s.CartRAM[computedAddr] = val
+			s.CartRAMModified = true
+			//fmt.Println("CART RAM WRITE BANK", bank, "addr", addr, "computed", computedAddr, "val", val)
 		}
 	} else {
 		errOut(fmt.Sprintf("storage.write: passed non-rom addr 0x%04x", addr))
