@@ -110,14 +110,14 @@ func (v *vdp) incVCounter() {
 	// TODO: fixups for PAL
 	switch v.ModeHeight {
 	case 192:
-		if v.VCounterFixupsThisFrame == 0 && v.VCounter == 0xdb {
+		if v.VCounterFixupsThisFrame == 0 && v.VCounter == 0xda {
 			v.VCounterFixupsThisFrame++
 			v.VCounter = 0xd5
 		} else {
 			v.VCounter++
 		}
 	case 224:
-		if v.VCounterFixupsThisFrame == 0 && v.VCounter == 0xeb {
+		if v.VCounterFixupsThisFrame == 0 && v.VCounter == 0xea {
 			v.VCounterFixupsThisFrame++
 			v.VCounter = 0xe5
 		} else {
