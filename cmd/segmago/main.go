@@ -94,10 +94,12 @@ func startEmu(filename string, window *platform.WindowState, emu segmago.Emulato
 	<-timer.C
 
 	maxRDiff := time.Duration(0)
-	maxFDiff := 0.0
+	maxFDiff := time.Duration(0)
 	frameCount := 0
 
-	frametimeGoal := 1.0/60.0
+	accuracyProtection := 1*time.Millisecond
+
+	frametimeGoal := 16.66*1000*1000*time.Nanosecond
 
 	snapshotMode := 'x'
 
@@ -182,6 +184,22 @@ func startEmu(filename string, window *platform.WindowState, emu segmago.Emulato
 		audioBufSlice := workingAudioBuffer[:bufferAvailable]
 		audio.Write(emu.ReadSoundBuffer(audioBufSlice))
 
+		if emu.CartRAMModified() {
+			if time.Now().Sub(lastSaveTime) > 10*time.Second {
+				ram := emu.GetCartRAM()
+				if len(ram) > 0 {
+					buf := bytes.NewBuffer([]byte{})
+					writer := gzip.NewWriter(buf)
+					writer.Write(ram)
+					writer.Close()
+
+					ioutil.WriteFile(saveFilename, buf.Bytes(), os.FileMode(0644))
+					lastSaveTime = time.Now()
+					fmt.Println("game saved!")
+				}
+			}
+		}
+
 		if emu.FlipRequested() {
 			window.Mutex.Lock()
 			copy(window.Pix, emu.Framebuffer())
@@ -189,50 +207,44 @@ func startEmu(filename string, window *platform.WindowState, emu segmago.Emulato
 			window.Mutex.Unlock()
 
 			frameCount++
-			if frameCount & 0x1ff == 0 {
-				fmt.Printf("maxRTime %.4f, maxFTime %.4f\n", maxRDiff.Seconds(), maxFDiff)
+			if frameCount & 0xff == 0 {
+				fmt.Printf("maxRTime %.4f, maxFTime %.4f ", maxRDiff.Seconds(), maxFDiff.Seconds())
+				fmt.Printf("accuracyProtection %.4f\n", accuracyProtection.Seconds())
 				maxRDiff = 0
 				maxFDiff = 0
 			}
 
 			rDiff := time.Now().Sub(lastFlipTime)
-			const accuracyProtection = 2*time.Millisecond
-			ftGoalAsDuration := time.Duration(frametimeGoal*1000)*time.Millisecond
-			maxSleep := ftGoalAsDuration - accuracyProtection
+			maxSleep := frametimeGoal - accuracyProtection
 			toSleep := maxSleep - rDiff
 			if toSleep > accuracyProtection {
 				timer.Reset(toSleep)
 				<-timer.C
+			} else {
+				accuracyProtection /= 2
 			}
 
-			fDiff := 0.0
-			for fDiff < frametimeGoal-0.0005 { // seems to be about 0.0005 resolution? so leave a bit of play
-				fDiff = time.Now().Sub(lastFlipTime).Seconds()
+			waitEnds := lastFlipTime.Add(frametimeGoal)
+			for waitEnds.Sub(time.Now()) > 0 {
+				// spin
 			}
+
 			if rDiff > maxRDiff {
 				maxRDiff = rDiff
 			}
+
+			fDiff := time.Now().Sub(lastFlipTime)
 			if fDiff > maxFDiff {
 				maxFDiff = fDiff
 			}
 
-			lastFlipTime = time.Now()
-
-			if time.Now().Sub(lastSaveTime) > 10*time.Second {
-				if emu.CartRAMModified() {
-					ram := emu.GetCartRAM()
-					if len(ram) > 0 {
-						buf := bytes.NewBuffer([]byte{})
-						writer := gzip.NewWriter(buf)
-						writer.Write(ram)
-						writer.Close()
-
-						ioutil.WriteFile(saveFilename, buf.Bytes(), os.FileMode(0644))
-						lastSaveTime = time.Now()
-						fmt.Println("game saved!")
-					}
+			if maxSleep > accuracyProtection && fDiff > frametimeGoal {
+				if fDiff - frametimeGoal > accuracyProtection {
+					accuracyProtection = fDiff - frametimeGoal
 				}
 			}
+
+			lastFlipTime = time.Now()
 		}
 	}
 }
