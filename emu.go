@@ -21,11 +21,11 @@ type Emulator interface {
 }
 
 func (emu *emuState) MakeSnapshot() []byte {
-	return []byte{}
+	return emu.makeSnapshot()
 }
 
 func (emu *emuState) LoadSnapshot(snapBytes []byte) (Emulator, error) {
-	return nil, fmt.Errorf("snapshots not implemented yet")
+	return emu.loadSnapshot(snapBytes)
 }
 
 // NewEmulatorSMS creates a Sega Master System emulation session

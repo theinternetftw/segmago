@@ -29,11 +29,11 @@ type z80 struct {
 	Steps  uint32
 	Cycles uint32
 
-	RunCycles func(cycles uint32)
-	Read      func(addr uint16) byte
-	Write     func(addr uint16, val byte)
-	In        func(addr uint16) byte
-	Out       func(addr uint16, val byte)
+	RunCycles func(cycles uint32)         `json:"-"`
+	Read      func(addr uint16) byte      `json:"-"`
+	Write     func(addr uint16, val byte) `json:"-"`
+	In        func(addr uint16) byte      `json:"-"`
+	Out       func(addr uint16, val byte) `json:"-"`
 }
 
 func (z *z80) read16(addr uint16) uint16 {

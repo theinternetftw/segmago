@@ -32,9 +32,10 @@ func main() {
 	}
 
 	bios := []byte{}
+	biosFilename := ""
 	if numArgs > 2 {
-		biosFilename := os.Args[2]
 		var err error
+		biosFilename = os.Args[2]
 		bios, err = ioutil.ReadFile(biosFilename)
 		dieIf(err)
 	}
@@ -47,12 +48,16 @@ func main() {
 		emu = segmago.NewEmulatorSMS(cart, bios)
 	}
 
+	gameName := cartFilename
+	if gameName == "null" {
+		gameName = biosFilename
+	}
 
 	screenW := 256
 	screenH := 240
 
 	platform.InitDisplayLoop("segmago", screenW*2, screenH*2, screenW, screenH, func(sharedState *platform.WindowState) {
-		startEmu(cartFilename, sharedState, emu)
+		startEmu(gameName, sharedState, emu)
 	})
 }
 

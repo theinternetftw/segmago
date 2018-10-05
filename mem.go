@@ -18,10 +18,31 @@ type storage struct {
 type mem struct {
 	RAM [8192]byte
 
-	SelectedMem *storage
+	selectedMem *storage
 	BIOSStorage storage
 	CartStorage storage
 	NullStorage storage
+}
+
+func (m *mem) marshallSelectedMem() int {
+	switch m.selectedMem {
+	case &m.BIOSStorage:
+		return 0
+	case &m.CartStorage:
+		return 1
+	default:
+		return 2
+	}
+}
+func (m *mem) unmarshallSelectedMem(selMem int) {
+	switch selMem {
+	case 0:
+		m.selectedMem = &m.BIOSStorage
+	case 1:
+		m.selectedMem = &m.CartStorage
+	default:
+		m.selectedMem = &m.NullStorage
+	}
 }
 
 func (m *mem) init(cart, bios []byte) {
@@ -35,9 +56,9 @@ func (m *mem) init(cart, bios []byte) {
 	m.NullStorage.init(make([]byte, 16*1024))
 
 	if len(bios) > 0 {
-		m.SelectedMem = &m.BIOSStorage
+		m.selectedMem = &m.BIOSStorage
 	} else {
-		m.SelectedMem = &m.CartStorage
+		m.selectedMem = &m.CartStorage
 	}
 }
 
@@ -136,7 +157,7 @@ func (emu *emuState) read(addr uint16) byte {
 
 	var val byte
 	if addr < 0xc000 {
-		val = m.SelectedMem.read(addr)
+		val = m.selectedMem.read(addr)
 	} else if addr < 0xe000 {
 		val = m.RAM[addr-0xc000]
 	} else {
@@ -148,12 +169,12 @@ func (emu *emuState) read(addr uint16) byte {
 func (emu *emuState) write(addr uint16, val byte) {
 	m := &emu.Mem
 	if addr < 0xc000 {
-		m.SelectedMem.write(addr, val)
+		m.selectedMem.write(addr, val)
 	} else if addr < 0xe000 {
 		m.RAM[addr-0xc000] = val
 	} else {
 		m.RAM[addr-0xe000] = val
-		m.SelectedMem.ctrlMapper(addr, val)
+		m.selectedMem.ctrlMapper(addr, val)
 	}
 }
 
