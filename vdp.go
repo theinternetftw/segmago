@@ -159,41 +159,40 @@ func (v *vdp) drawColor(x, y uint16, r, g, b byte) {
 	v.framebuffer[base+3] = 0xff
 }
 
-func (v *vdp) getNameTableEntry(tileX, tileY uint16) uint16 {
+type nameTableEntry struct {
+	patternNum    uint16
+	hFlip         bool
+	vFlip         bool
+	wantsPriority bool
+	paletteSel    byte
+}
+
+func (v *vdp) getNameTableEntry(tileX, tileY uint16) nameTableEntry {
+
 	baseAddr := v.SMSNameTableAddr
 	addr := baseAddr | (tileY << 6) | tileX<<1
-	entry := uint16(v.VRAM[addr]) | uint16(v.VRAM[addr+1])<<8
-	return entry
+	rawEntry := uint16(v.VRAM[addr]) | uint16(v.VRAM[addr+1])<<8
+
+	return nameTableEntry{
+		patternNum:    rawEntry & 0x1ff,
+		hFlip:         rawEntry>>9&1 > 0,
+		vFlip:         rawEntry>>10&1 > 0,
+		wantsPriority: rawEntry&0x1000 > 0,
+		paletteSel:    byte((rawEntry >> 11) & 1),
+	}
 }
 
 func (v *vdp) getPatternCplanes(patternNum, x, y uint16) byte {
 	pattern := v.VRAM[patternNum*32:]
 	line := pattern[4*y:]
 
-	bit0 := line[0] >> (7 - x) & 1
-	bit1 := line[1] >> (7 - x) & 1
-	bit2 := line[2] >> (7 - x) & 1
-	bit3 := line[3] >> (7 - x) & 1
+	sel := 7 - x
+	bit0 := line[0] >> sel & 1
+	bit1 := line[1] >> sel & 1
+	bit2 := line[2] >> sel & 1
+	bit3 := line[3] >> sel & 1
 
 	palIdx := bit0 | bit1<<1 | bit2<<2 | bit3<<3
-	return palIdx
-}
-
-func (v *vdp) getBGCPlanes(entry, x, y uint16) byte {
-	// TODO: xscrollFine, yscrollFine
-
-	patternNum := entry & 0x1ff
-	hFlip := entry>>9&1 > 0
-	vFlip := entry>>10&1 > 0
-
-	if hFlip {
-		x = 7 - x
-	}
-	if vFlip {
-		y = 7 - y
-	}
-
-	palIdx := v.getPatternCplanes(patternNum, x, y)
 	return palIdx
 }
 
@@ -312,24 +311,37 @@ func (v *vdp) renderScanline(y uint16) {
 
 		tileX := (i - scrollX/8) & 31
 
-		var entry uint16
+		var effectiveTileY uint16
 		if v.DisableVertScrollForRightSide && i >= 24 {
-			entry = v.getNameTableEntry(tileX, tileY)
+			effectiveTileY = tileY
 		} else {
-			entry = v.getNameTableEntry(tileX, scrolledTileY)
+			effectiveTileY = scrolledTileY
 		}
 
+		entry := v.getNameTableEntry(tileX, effectiveTileY)
+		bgY := (y + scrollY) & 7
+		if entry.vFlip {
+			bgY = 7 - bgY
+		}
+		bgX := 0
+		bgXDir := 1
+		if entry.hFlip {
+			bgX = 7
+			bgXDir = -1
+		}
+
+		pX := i*8 + scrollX&7
 		for j := uint16(0); j < 8; j++ {
-			// TODO: set color to backdrop on pX wrap
-			pX := i*8 + j + scrollX&7
 			if pX >= 256 {
 				bgCplanes[pX-256] = v.SMSBackdropCplane
 				bgPalettes[pX-256] = 1
 			} else {
-				bgCplanes[pX] = v.getBGCPlanes(entry, j, (y+scrollY)&7)
-				bgPriority[pX] = bgCplanes[pX] != 0 && entry&0x1000 > 0
-				bgPalettes[pX] = byte((entry >> 11) & 1)
+				bgCplanes[pX] = v.getPatternCplanes(entry.patternNum, uint16(bgX), bgY)
+				bgPriority[pX] = bgCplanes[pX] != 0 && entry.wantsPriority
+				bgPalettes[pX] = entry.paletteSel
 			}
+			bgX += bgXDir
+			pX++
 		}
 	}
 
@@ -449,17 +461,18 @@ func (v *vdp) runCycle() {
 }
 
 func (v *vdp) updateMode() {
-	m4, m3, m2, m1 := v.RegM4, v.RegM3, v.RegM2, v.RegM1
-	if m4 && !m3 && !m2 && !m1 {
+	assert(v.RegM4, "Non mode4-based modes are not implemented")
+	m3, m2, m1 := v.RegM3, v.RegM2, v.RegM1
+	if !m3 && !m2 && !m1 {
 		v.ModeHeight = 192 // normal Mode 4
-	} else if m4 && !m3 && m2 && !m1 {
+	} else if !m3 && m2 && !m1 {
 		v.ModeHeight = 192 // normal Mode 4
-	} else if m4 && m3 && !m2 && !m1 {
+	} else if m3 && !m2 && !m1 {
 		v.ModeHeight = 192 // normal Mode 4
-	} else if m4 && m3 && m2 && m1 {
+	} else if m3 && m2 && m1 {
 		v.ModeHeight = 192 // normal Mode 4
 	} else {
-		errOut("Unimplemented mode!", v.RegM1, v.RegM2, v.RegM3, v.RegM4)
+		errOut("Unimplemented mode4 variant!", v.RegM1, v.RegM2, v.RegM3)
 	}
 }
 
