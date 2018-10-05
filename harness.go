@@ -34,7 +34,7 @@ func RunZEXTEST(cart []byte) {
 	state.CPU.Write = func(addr uint16, val byte) {
 		RAM[addr] = val
 	}
-	state.CPU.RunCycles = func(uint) {
+	state.CPU.RunCycles = func(uint32) {
 		if state.CPU.PC == 5 {
 			switch state.CPU.C {
 			case 2:
@@ -67,7 +67,7 @@ func RunZEXTEST(cart []byte) {
 }
 
 type testEvent struct {
-	cycleTime uint
+	cycleTime uint32
 	eventType string
 	addr      uint16
 	data      byte
@@ -76,7 +76,7 @@ type testEndState struct {
 	regs testRegSet
 
 	halted        bool
-	endCycleCount uint
+	endCycleCount uint32
 
 	events      []testEvent
 	memSettings []memSetting
@@ -99,7 +99,7 @@ type suiteTest struct {
 	regs testRegSet
 
 	halted    bool
-	minCycles uint
+	minCycles uint32
 
 	memSettings []memSetting
 
@@ -168,7 +168,7 @@ func scanRegs(s *strScanner) testRegSet {
 
 func scanEvent(s *strScanner) testEvent {
 	e := testEvent{}
-	e.cycleTime = uint(scanInt(s))
+	e.cycleTime = uint32(scanInt(s))
 	e.eventType = s.Next()
 	e.addr = scanUint16(s)
 	if e.eventType != "MC" && e.eventType != "PC" {
@@ -270,7 +270,7 @@ func parseSuiteTests(input []byte, expected []byte) []suiteTest {
 
 		test.regs = scanRegs(in)
 		test.halted = scanInt(in) == 1
-		test.minCycles = uint(scanInt(in))
+		test.minCycles = uint32(scanInt(in))
 
 		test.memSettings = scanMemSettings(in)
 
@@ -283,7 +283,7 @@ func parseSuiteTests(input []byte, expected []byte) []suiteTest {
 		test.endState.events = scanEvents(ex)
 		test.endState.regs = scanRegs(ex)
 		test.endState.halted = scanInt(ex) == 1
-		test.endState.endCycleCount = uint(scanInt(ex))
+		test.endState.endCycleCount = uint32(scanInt(ex))
 
 		if ex.Peek() != nextDescript {
 			test.endState.memSettings = append(test.endState.memSettings, scanMemSetting(ex))
@@ -324,7 +324,7 @@ func setInitialState(s *emuState, test *suiteTest) {
 	}
 }
 
-func matchUint(testName, fieldName string, output, expected uint) bool {
+func matchUint(testName, fieldName string, output, expected uint32) bool {
 	if output != expected {
 		fmt.Printf("%v: %v: %v should be %v\n", testName, fieldName, output, expected)
 		return false

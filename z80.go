@@ -26,10 +26,10 @@ type z80 struct {
 	NMI                    bool
 	InterruptSettingPreNMI bool // IFF2
 
-	Steps  uint
-	Cycles uint
+	Steps  uint32
+	Cycles uint32
 
-	RunCycles func(cycles uint)
+	RunCycles func(cycles uint32)
 	Read      func(addr uint16) byte
 	Write     func(addr uint16, val byte)
 	In        func(addr uint16) byte

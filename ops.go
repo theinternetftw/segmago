@@ -2,7 +2,7 @@ package segmago
 
 import "fmt"
 
-func (z *z80) setOp8(cycles uint, instLen uint16, reg *uint8, val uint8, flags uint32) {
+func (z *z80) setOp8(cycles uint32, instLen uint16, reg *uint8, val uint8, flags uint32) {
 	z.RunCycles(cycles)
 	z.PC += instLen
 	z.R += byte(instLen)
@@ -10,29 +10,29 @@ func (z *z80) setOp8(cycles uint, instLen uint16, reg *uint8, val uint8, flags u
 	z.setFlags(flags)
 }
 
-func (z *z80) setOpA(cycles uint, instLen uint16, val uint8, flags uint32) {
+func (z *z80) setOpA(cycles uint32, instLen uint16, val uint8, flags uint32) {
 	z.setOp8(cycles, instLen, &z.A, val, flags)
 }
-func (z *z80) setOpB(cycles uint, instLen uint16, val uint8, flags uint32) {
+func (z *z80) setOpB(cycles uint32, instLen uint16, val uint8, flags uint32) {
 	z.setOp8(cycles, instLen, &z.B, val, flags)
 }
-func (z *z80) setOpC(cycles uint, instLen uint16, val uint8, flags uint32) {
+func (z *z80) setOpC(cycles uint32, instLen uint16, val uint8, flags uint32) {
 	z.setOp8(cycles, instLen, &z.C, val, flags)
 }
-func (z *z80) setOpD(cycles uint, instLen uint16, val uint8, flags uint32) {
+func (z *z80) setOpD(cycles uint32, instLen uint16, val uint8, flags uint32) {
 	z.setOp8(cycles, instLen, &z.D, val, flags)
 }
-func (z *z80) setOpE(cycles uint, instLen uint16, val uint8, flags uint32) {
+func (z *z80) setOpE(cycles uint32, instLen uint16, val uint8, flags uint32) {
 	z.setOp8(cycles, instLen, &z.E, val, flags)
 }
-func (z *z80) setOpL(cycles uint, instLen uint16, val uint8, flags uint32) {
+func (z *z80) setOpL(cycles uint32, instLen uint16, val uint8, flags uint32) {
 	z.setOp8(cycles, instLen, &z.L, val, flags)
 }
-func (z *z80) setOpH(cycles uint, instLen uint16, val uint8, flags uint32) {
+func (z *z80) setOpH(cycles uint32, instLen uint16, val uint8, flags uint32) {
 	z.setOp8(cycles, instLen, &z.H, val, flags)
 }
 
-func (z *z80) setOp16(cycles uint, instLen uint16, setFn func(uint16), val uint16, flags uint32) {
+func (z *z80) setOp16(cycles uint32, instLen uint16, setFn func(uint16), val uint16, flags uint32) {
 	z.RunCycles(cycles)
 	z.PC += instLen
 	z.R += byte(instLen)
@@ -40,36 +40,36 @@ func (z *z80) setOp16(cycles uint, instLen uint16, setFn func(uint16), val uint1
 	z.setFlags(flags)
 }
 
-func (z *z80) setOpHL(cycles uint, instLen uint16, val uint16, flags uint32) {
+func (z *z80) setOpHL(cycles uint32, instLen uint16, val uint16, flags uint32) {
 	z.setOp16(cycles, instLen, z.setHL, val, flags)
 }
-func (z *z80) setOpBC(cycles uint, instLen uint16, val uint16, flags uint32) {
+func (z *z80) setOpBC(cycles uint32, instLen uint16, val uint16, flags uint32) {
 	z.setOp16(cycles, instLen, z.setBC, val, flags)
 }
-func (z *z80) setOpDE(cycles uint, instLen uint16, val uint16, flags uint32) {
+func (z *z80) setOpDE(cycles uint32, instLen uint16, val uint16, flags uint32) {
 	z.setOp16(cycles, instLen, z.setDE, val, flags)
 }
-func (z *z80) setOpSP(cycles uint, instLen uint16, val uint16, flags uint32) {
+func (z *z80) setOpSP(cycles uint32, instLen uint16, val uint16, flags uint32) {
 	z.setOp16(cycles, instLen, z.setSP, val, flags)
 }
-func (z *z80) setOpPC(cycles uint, instLen uint16, val uint16, flags uint32) {
+func (z *z80) setOpPC(cycles uint32, instLen uint16, val uint16, flags uint32) {
 	z.setOp16(cycles, instLen, z.setPC, val, flags)
 }
-func (z *z80) setOpIX(cycles uint, instLen uint16, val uint16, flags uint32) {
+func (z *z80) setOpIX(cycles uint32, instLen uint16, val uint16, flags uint32) {
 	z.setOp16(cycles, instLen, z.setIX, val, flags)
 }
-func (z *z80) setOpIY(cycles uint, instLen uint16, val uint16, flags uint32) {
+func (z *z80) setOpIY(cycles uint32, instLen uint16, val uint16, flags uint32) {
 	z.setOp16(cycles, instLen, z.setIY, val, flags)
 }
 
-func (z *z80) setOpMem8(cycles uint, instLen uint16, addr uint16, val uint8, flags uint32) {
+func (z *z80) setOpMem8(cycles uint32, instLen uint16, addr uint16, val uint8, flags uint32) {
 	z.RunCycles(cycles)
 	z.PC += instLen
 	z.R += byte(instLen)
 	z.Write(addr, val)
 	z.setFlags(flags)
 }
-func (z *z80) setOpMem16(cycles uint, instLen uint16, addr uint16, val uint16, flags uint32) {
+func (z *z80) setOpMem16(cycles uint32, instLen uint16, addr uint16, val uint16, flags uint32) {
 	z.RunCycles(cycles)
 	z.PC += instLen
 	z.R += byte(instLen)
@@ -77,7 +77,7 @@ func (z *z80) setOpMem16(cycles uint, instLen uint16, addr uint16, val uint16, f
 	z.setFlags(flags)
 }
 
-func (z *z80) jmpRel8(cyclesTaken uint, cyclesNotTaken uint, instLen uint16, test bool, relAddr int8) {
+func (z *z80) jmpRel8(cyclesTaken uint32, cyclesNotTaken uint32, instLen uint16, test bool, relAddr int8) {
 	z.PC += instLen
 	z.R += byte(instLen)
 	if test {
@@ -87,7 +87,7 @@ func (z *z80) jmpRel8(cyclesTaken uint, cyclesNotTaken uint, instLen uint16, tes
 		z.RunCycles(cyclesNotTaken)
 	}
 }
-func (z *z80) jmpAbs16(cyclesTaken uint, cyclesNotTaken uint, instLen uint16, test bool, addr uint16) {
+func (z *z80) jmpAbs16(cyclesTaken uint32, cyclesNotTaken uint32, instLen uint16, test bool, addr uint16) {
 	z.PC += instLen
 	z.R += byte(instLen)
 	if test {
@@ -98,7 +98,7 @@ func (z *z80) jmpAbs16(cyclesTaken uint, cyclesNotTaken uint, instLen uint16, te
 	}
 }
 
-func (z *z80) jmpCall(cyclesTaken uint, cyclesNotTaken uint, instLen uint16, test bool, addr uint16) {
+func (z *z80) jmpCall(cyclesTaken uint32, cyclesNotTaken uint32, instLen uint16, test bool, addr uint16) {
 	if test {
 		z.pushOp16(cyclesTaken, instLen, z.PC+instLen)
 		z.PC = addr
@@ -106,7 +106,7 @@ func (z *z80) jmpCall(cyclesTaken uint, cyclesNotTaken uint, instLen uint16, tes
 		z.setOpFn(cyclesNotTaken, instLen, func() {}, 0x22222222)
 	}
 }
-func (z *z80) jmpRet(cyclesTaken uint, cyclesNotTaken uint, instLen uint16, test bool) {
+func (z *z80) jmpRet(cyclesTaken uint32, cyclesNotTaken uint32, instLen uint16, test bool) {
 	if test {
 		z.popOp16(cyclesTaken, instLen, z.setPC)
 	} else {
@@ -1293,7 +1293,7 @@ func cFlagSbc16(val, subtrahend uint16, fReg uint8) uint32 {
 	return 0x0
 }
 
-func (z *z80) setOpFn(cycles uint, instLen uint16, fn func(), flags uint32) {
+func (z *z80) setOpFn(cycles uint32, instLen uint16, fn func(), flags uint32) {
 	z.RunCycles(cycles)
 	z.PC += instLen
 	z.R += byte(instLen)
@@ -1301,11 +1301,11 @@ func (z *z80) setOpFn(cycles uint, instLen uint16, fn func(), flags uint32) {
 	z.setFlags(flags)
 }
 
-func (z *z80) pushOp16(cycles uint, instLen uint16, val uint16) {
+func (z *z80) pushOp16(cycles uint32, instLen uint16, val uint16) {
 	z.setOpMem16(cycles, instLen, z.SP-2, val, 0x22222222)
 	z.SP -= 2
 }
-func (z *z80) popOp16(cycles uint, instLen uint16, setFn func(val uint16)) {
+func (z *z80) popOp16(cycles uint32, instLen uint16, setFn func(val uint16)) {
 	z.setOpFn(cycles, instLen, func() { setFn(z.read16(z.SP)) }, 0x22222222)
 	z.SP += 2
 }
@@ -1425,7 +1425,7 @@ func overflagAdd(a, val, result byte) uint32 {
 func overflagSub(a, val, result byte) uint32 {
 	return uint32(((a^val)&(a^result))&0x80) << 1
 }
-func (z *z80) addOpA(cycles uint, instLen uint16, val byte) {
+func (z *z80) addOpA(cycles uint32, instLen uint16, val byte) {
 	result := z.A + val
 	flags := signFlag(result)
 	flags |= zFlag(result)
@@ -1435,7 +1435,7 @@ func (z *z80) addOpA(cycles uint, instLen uint16, val byte) {
 	flags |= cFlagAdd(z.A, val)
 	z.setOpA(cycles, instLen, z.A+val, flags)
 }
-func (z *z80) adcOpA(cycles uint, instLen uint16, val byte) {
+func (z *z80) adcOpA(cycles uint32, instLen uint16, val byte) {
 	carry := z.F & 1
 	result := z.A + val + carry
 	flags := signFlag(result)
@@ -1446,7 +1446,7 @@ func (z *z80) adcOpA(cycles uint, instLen uint16, val byte) {
 	flags |= cFlagAdc(z.A, val, z.F)
 	z.setOpA(cycles, instLen, result, flags)
 }
-func (z *z80) adcOpHL(cycles uint, instLen uint16, val uint16) {
+func (z *z80) adcOpHL(cycles uint32, instLen uint16, val uint16) {
 	hl := z.getHL()
 	carry := uint16(z.F & 1)
 	result := hl + val + carry
@@ -1458,7 +1458,7 @@ func (z *z80) adcOpHL(cycles uint, instLen uint16, val uint16) {
 	flags |= cFlagAdc16(hl, val, z.F)
 	z.setOpHL(cycles, instLen, result, flags)
 }
-func (z *z80) subOpA(cycles uint, instLen uint16, val byte) {
+func (z *z80) subOpA(cycles uint32, instLen uint16, val byte) {
 	result := z.A - val
 	flags := signFlag(result)
 	flags |= zFlag(result)
@@ -1469,7 +1469,7 @@ func (z *z80) subOpA(cycles uint, instLen uint16, val byte) {
 	flags |= cFlagSub(z.A, val)
 	z.setOpA(cycles, instLen, result, flags)
 }
-func (z *z80) sbcOpA(cycles uint, instLen uint16, val byte) {
+func (z *z80) sbcOpA(cycles uint32, instLen uint16, val byte) {
 	carry := z.F & 1
 	result := z.A - val - carry
 	flags := signFlag(result)
@@ -1481,7 +1481,7 @@ func (z *z80) sbcOpA(cycles uint, instLen uint16, val byte) {
 	flags |= cFlagSbc(z.A, val, z.F)
 	z.setOpA(cycles, instLen, result, flags)
 }
-func (z *z80) sbcOpHL(cycles uint, instLen uint16, val uint16) {
+func (z *z80) sbcOpHL(cycles uint32, instLen uint16, val uint16) {
 	hl := z.getHL()
 	carry := uint16(z.F & 1)
 	result := hl - val - carry
@@ -1494,7 +1494,7 @@ func (z *z80) sbcOpHL(cycles uint, instLen uint16, val uint16) {
 	flags |= cFlagSbc16(hl, val, z.F)
 	z.setOpHL(cycles, instLen, result, flags)
 }
-func (z *z80) negOpA(cycles uint, instLen uint16) {
+func (z *z80) negOpA(cycles uint32, instLen uint16) {
 	result := 0 - z.A
 	flags := signFlag(result)
 	flags |= zFlag(result)
@@ -1505,7 +1505,7 @@ func (z *z80) negOpA(cycles uint, instLen uint16) {
 	flags |= cFlagSub(0, z.A)
 	z.setOpA(cycles, instLen, result, flags)
 }
-func (z *z80) andOpA(cycles uint, instLen uint16, val byte) {
+func (z *z80) andOpA(cycles uint32, instLen uint16, val byte) {
 	result := z.A & val
 	flags := signFlag(result)
 	flags |= zFlag(result)
@@ -1514,7 +1514,7 @@ func (z *z80) andOpA(cycles uint, instLen uint16, val byte) {
 	flags |= parityFlag(result)
 	z.setOpA(cycles, instLen, result, flags)
 }
-func (z *z80) xorOpA(cycles uint, instLen uint16, val byte) {
+func (z *z80) xorOpA(cycles uint32, instLen uint16, val byte) {
 	result := z.A ^ val
 	flags := signFlag(result)
 	flags |= zFlag(result)
@@ -1522,7 +1522,7 @@ func (z *z80) xorOpA(cycles uint, instLen uint16, val byte) {
 	flags |= parityFlag(result)
 	z.setOpA(cycles, instLen, result, flags)
 }
-func (z *z80) orOpA(cycles uint, instLen uint16, val byte) {
+func (z *z80) orOpA(cycles uint32, instLen uint16, val byte) {
 	result := z.A | val
 	flags := signFlag(result)
 	flags |= zFlag(result)
@@ -1530,7 +1530,7 @@ func (z *z80) orOpA(cycles uint, instLen uint16, val byte) {
 	flags |= parityFlag(result)
 	z.setOpA(cycles, instLen, result, flags)
 }
-func (z *z80) cpOp(cycles uint, instLen uint16, val byte) {
+func (z *z80) cpOp(cycles uint32, instLen uint16, val byte) {
 	result := z.A - val
 	flags := signFlag(result)
 	flags |= zFlag(result)
@@ -1542,7 +1542,7 @@ func (z *z80) cpOp(cycles uint, instLen uint16, val byte) {
 	z.setOpFn(cycles, instLen, func() {}, flags)
 }
 
-func (z *z80) callOp(cycles uint, instLen, callAddr uint16) {
+func (z *z80) callOp(cycles uint32, instLen, callAddr uint16) {
 	z.pushOp16(cycles, instLen, z.PC+instLen)
 	z.PC = callAddr
 }
@@ -1570,22 +1570,22 @@ func (z *z80) getRegFromOpBits(opBits byte) *byte {
 	panic("getRegFromOpBits: unknown bits passed")
 }
 
-func (z *z80) getCyclesAndValFromOpBits(cyclesReg uint, cyclesHL uint, opcode byte) (uint, byte) {
+func (z *z80) getCyclesAndValFromOpBits(cyclesReg uint32, cyclesHL uint32, opcode byte) (uint32, byte) {
 	if reg := z.getRegFromOpBits(opcode & 0x07); reg != nil {
 		return cyclesReg, *reg
 	}
 	return cyclesHL, z.followHL()
 }
 
-func (z *z80) loadOp(cyclesReg uint, cyclesHL uint, instLen uint16,
-	opcode byte, fnPtr func(uint, uint16, byte, uint32)) {
+func (z *z80) loadOp(cyclesReg uint32, cyclesHL uint32, instLen uint16,
+	opcode byte, fnPtr func(uint32, uint16, byte, uint32)) {
 
 	cycles, val := z.getCyclesAndValFromOpBits(cyclesReg, cyclesHL, opcode)
 	fnPtr(cycles, instLen, val, 0x22222222)
 }
 
-func (z *z80) aluOp(cyclesReg uint, cyclesHL uint, instLen uint16,
-	opcode byte, fnPtr func(uint, uint16, byte)) {
+func (z *z80) aluOp(cyclesReg uint32, cyclesHL uint32, instLen uint16,
+	opcode byte, fnPtr func(uint32, uint16, byte)) {
 
 	cycles, val := z.getCyclesAndValFromOpBits(cyclesReg, cyclesHL, opcode)
 	fnPtr(cycles, instLen, val)
@@ -2101,7 +2101,7 @@ func (z *z80) stepCBPrefixOpcode() {
 	}
 }
 
-func (z *z80) extSetOp(cyclesReg uint, cyclesHL uint, instLen uint16, opcode byte,
+func (z *z80) extSetOp(cyclesReg uint32, cyclesHL uint32, instLen uint16, opcode byte,
 	opFn func(val byte) (result byte, flags uint32)) {
 
 	if reg := z.getRegFromOpBits(opcode & 0x07); reg != nil {
@@ -2113,7 +2113,7 @@ func (z *z80) extSetOp(cyclesReg uint, cyclesHL uint, instLen uint16, opcode byt
 	}
 }
 
-func (z *z80) indexExtSetOp(cycles uint, instLen uint16, opcode byte,
+func (z *z80) indexExtSetOp(cycles uint32, instLen uint16, opcode byte,
 	indexReg *uint16, opFn func(val byte) (result byte, flags uint32)) {
 
 	addr := getDisplacedAddr(*indexReg, z.Read(z.PC+2))
@@ -2127,7 +2127,7 @@ func (z *z80) indexExtSetOp(cycles uint, instLen uint16, opcode byte,
 	z.setOpMem8(cycles, instLen, addr, result, flags)
 }
 
-func (z *z80) indexBitOp(cycles uint, instLen uint16, indexReg *uint16, bitNum byte) {
+func (z *z80) indexBitOp(cycles uint32, instLen uint16, indexReg *uint16, bitNum byte) {
 	addr := getDisplacedAddr(*indexReg, z.Read(z.PC+2))
 	val := z.Read(addr)
 	flags := bitOp(val, bitNum)
@@ -2219,13 +2219,13 @@ func bitOp(val byte, bitNum byte) uint32 {
 	return flags
 }
 
-func (z *z80) stdBitOp(cyclesReg uint, cyclesHL uint, instLen uint16, opcode byte, bitNum byte) {
+func (z *z80) stdBitOp(cyclesReg uint32, cyclesHL uint32, instLen uint16, opcode byte, bitNum byte) {
 	cycles, val := z.getCyclesAndValFromOpBits(cyclesReg, cyclesHL, opcode)
 	flags := bitOp(val, bitNum)
 	z.setOpFn(cycles, instLen, func() {}, flags)
 }
 
-func (z *z80) getResOp(bitNum uint) func(byte) (byte, uint32) {
+func (z *z80) getResOp(bitNum uint32) func(byte) (byte, uint32) {
 	return func(val byte) (byte, uint32) {
 		result := val &^ (1 << bitNum)
 		return result, 0x22222222
@@ -2239,7 +2239,7 @@ func (z *z80) getBitSetOp(bitNum uint8) func(byte) (byte, uint32) {
 	}
 }
 
-func (z *z80) runAndUpdatePC(numCycles uint, instLen uint16) {
+func (z *z80) runAndUpdatePC(numCycles uint32, instLen uint16) {
 	z.RunCycles(numCycles)
 	z.PC += instLen
 }

@@ -33,7 +33,7 @@ type emuState struct {
 
 	IsGameGear bool
 
-	Cycles uint
+	Cycles uint32
 }
 
 func (emu *emuState) setMemControlReg(val byte) {
@@ -153,8 +153,8 @@ func checkCart(cart []byte) {
 	}
 }
 
-func (emu *emuState) runCycles(numCycles uint) {
-	for i := uint(0); i < numCycles; i++ {
+func (emu *emuState) runCycles(numCycles uint32) {
+	for i := uint32(0); i < numCycles; i++ {
 		emu.Cycles++
 		emu.VDP.runCycle()
 		emu.SN76489.runCycle()

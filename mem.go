@@ -8,11 +8,11 @@ type storage struct {
 	CartRAMModified bool
 
 	CartRAMPagedIn bool
-	PageRAMBank    uint
+	PageRAMBank    uint32
 
-	Page0Bank uint
-	Page1Bank uint
-	Page2Bank uint
+	Page0Bank uint32
+	Page1Bank uint32
+	Page2Bank uint32
 }
 
 type mem struct {
@@ -50,7 +50,7 @@ func (s *storage) init(rom []byte) {
 
 func (s *storage) setPagingControlReg(b byte) {
 	s.CartRAMPagedIn = b&8 > 0
-	s.PageRAMBank = uint((b & 4) >> 2)
+	s.PageRAMBank = uint32((b & 4) >> 2)
 	// if b != 0x80 {
 	// 	fmt.Printf("PageCtrl: 0x%02x\n", b)
 	// 	fmt.Printf("\tRAM Paged In: %v\n", s.CartRAMPagedIn)
@@ -59,13 +59,13 @@ func (s *storage) setPagingControlReg(b byte) {
 	assert(b&0x10 == 0, "cart RAM over internal RAM mode not yet implemented")
 }
 
-func (s *storage) wrapROMBankNum(bankNum byte) uint {
+func (s *storage) wrapROMBankNum(bankNum byte) uint32 {
 	// should always be a power of two - 1
 	if len(s.rom) <= 16*1024 {
 		return 0
 	}
 	maxBankNum := byte((len(s.rom) / (16 * 1024)) - 1)
-	return uint(bankNum & maxBankNum)
+	return uint32(bankNum & maxBankNum)
 }
 
 func (s *storage) read(addr uint16) byte {
@@ -74,23 +74,23 @@ func (s *storage) read(addr uint16) byte {
 		val = s.rom[addr]
 	} else if addr < 0x4000 {
 		bank := s.Page0Bank
-		computedAddr := bank*0x4000 + uint(addr)
+		computedAddr := bank*0x4000 + uint32(addr)
 		//fmt.Println("ROM BANK", bank, "addr", addr, "computed", computedAddr)
 		val = s.rom[computedAddr]
 	} else if addr < 0x8000 {
 		bank := s.Page1Bank
-		computedAddr := bank*0x4000 + uint(addr-0x4000)
+		computedAddr := bank*0x4000 + uint32(addr-0x4000)
 		//fmt.Println("ROM BANK", bank, "addr", addr, "computed", computedAddr)
 		val = s.rom[computedAddr]
 	} else if addr < 0xc000 {
 		if s.CartRAMPagedIn {
 			bank := s.PageRAMBank
-			computedAddr := bank*0x4000 + uint(addr-0x8000)
+			computedAddr := bank*0x4000 + uint32(addr-0x8000)
 			//fmt.Println("CART RAM READ BANK", bank, "addr", addr, "computed", computedAddr)
 			val = s.CartRAM[computedAddr]
 		} else {
 			bank := s.Page2Bank
-			computedAddr := bank*0x4000 + uint(addr-0x8000)
+			computedAddr := bank*0x4000 + uint32(addr-0x8000)
 			//fmt.Println("ROM BANK", bank, "addr", addr, "computed", computedAddr)
 			val = s.rom[computedAddr]
 		}
@@ -106,7 +106,7 @@ func (s *storage) write(addr uint16, val byte) {
 	} else if addr < 0xc000 {
 		if s.CartRAMPagedIn {
 			bank := s.PageRAMBank
-			computedAddr := bank*0x4000 + uint(addr-0x8000)
+			computedAddr := bank*0x4000 + uint32(addr-0x8000)
 			s.CartRAM[computedAddr] = val
 			s.CartRAMModified = true
 			//fmt.Println("CART RAM WRITE BANK", bank, "addr", addr, "computed", computedAddr, "val", val)

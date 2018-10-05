@@ -14,11 +14,11 @@ type sn76489 struct {
 	LatchedSound   *sound
 	LatchIsForData bool
 
-	ClocksPerSample int
+	ClocksPerSample int32
 
-	SumLeft        int
-	SumRight       int
-	SampleSumCount int
+	SumLeft        int32
+	SumRight       int32
+	SampleSumCount int32
 
 	lastOutputLeft           float32
 	lastOutputRight          float32
@@ -27,15 +27,15 @@ type sn76489 struct {
 
 	StereoMixerReg byte
 
-	Clock int
+	Clock int32
 }
 
 const apuCircleBufSize = amountToStore
 
 // NOTE: size must be power of 2
 type apuCircleBuf struct {
-	writeIndex uint
-	readIndex  uint
+	writeIndex uint32
+	readIndex  uint32
 	buf        [apuCircleBufSize]byte
 }
 
@@ -62,9 +62,9 @@ func (c *apuCircleBuf) read(preSizedBuf []byte) []byte {
 	}
 	return preSizedBuf[:readCount]
 }
-func (c *apuCircleBuf) mask(i uint) uint { return i & (uint(len(c.buf)) - 1) }
-func (c *apuCircleBuf) size() uint       { return c.writeIndex - c.readIndex }
-func (c *apuCircleBuf) full() bool       { return c.size() == uint(len(c.buf)) }
+func (c *apuCircleBuf) mask(i uint32) uint32 { return i & (uint32(len(c.buf)) - 1) }
+func (c *apuCircleBuf) size() uint32         { return c.writeIndex - c.readIndex }
+func (c *apuCircleBuf) full() bool           { return c.size() == uint32(len(c.buf)) }
 
 type sound struct {
 	Volume  byte
@@ -85,7 +85,7 @@ func (s *sn76489) init() {
 	s.LatchedSound = &s.Sounds[0]
 
 	f := ntscClocksPerSecond / samplesPerSecond
-	s.ClocksPerSample = int(f)
+	s.ClocksPerSample = int32(f)
 
 	s.StereoMixerReg = 0xff
 }
@@ -101,11 +101,11 @@ func (s *sn76489) runCycle() {
 
 			for i := range s.Sounds {
 				sound := &s.Sounds[i]
-				sample := int(sound.Output * (15 - sound.Volume))
-				if s.StereoMixerReg>>uint(i)&1 > 0 {
+				sample := int32(sound.Output * (15 - sound.Volume))
+				if s.StereoMixerReg>>uint32(i)&1 > 0 {
 					s.SumLeft += sample
 				}
-				if s.StereoMixerReg>>uint(4+i)&1 > 0 {
+				if s.StereoMixerReg>>uint32(4+i)&1 > 0 {
 					s.SumRight += sample
 				}
 			}
