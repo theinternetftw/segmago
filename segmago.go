@@ -128,6 +128,7 @@ func newState(cart, bios []byte) *emuState {
 	for i := 1; i < len(state.Mem.RAM); i++ {
 		state.Mem.RAM[i] = 0xff
 	}
+	state.CPU.SP = 0xdfec
 
 	state.SN76489.init()
 	state.VDP.init()
