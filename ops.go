@@ -1408,6 +1408,8 @@ func (z *z80) debugStatusLine() string {
 		fmt.Sprintf("BC:%04x ", z.getBC()) +
 		fmt.Sprintf("DE:%04x ", z.getDE()) +
 		fmt.Sprintf("HL:%04x ", z.getHL()) +
+		fmt.Sprintf("IX:%04x ", z.IX) +
+		fmt.Sprintf("IY:%04x ", z.IY) +
 		fmt.Sprintf("IME:%v ", z.imeToString())
 
 	return outStr
