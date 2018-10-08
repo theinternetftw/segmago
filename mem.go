@@ -89,7 +89,7 @@ func (s *storage) wrapROMBankNum(bankNum byte) uint32 {
 		return 0
 	}
 	maxBankNum := byte((len(s.rom) / (16 * 1024)) - 1)
-	return uint32(bankNum & maxBankNum)
+	return uint32(bankNum % (maxBankNum + 1))
 }
 
 func (s *storage) read(addr uint16) byte {
