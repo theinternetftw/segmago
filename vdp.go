@@ -221,7 +221,7 @@ func (v *vdp) getNameTableEntry(tileX, tileY uint16) nameTableEntry {
 		baseAddr |= 0x0700
 	}
 
-	addr := baseAddr | (tileY << 6) | tileX<<1
+	addr := baseAddr + ((tileY << 6) | tileX<<1)
 	rawEntry := uint16(v.VRAM[addr]) | uint16(v.VRAM[addr+1])<<8
 
 	return nameTableEntry{
