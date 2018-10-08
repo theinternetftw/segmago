@@ -18,6 +18,8 @@ type Emulator interface {
 	GetCartRAM() []byte
 	CartRAMModified() bool
 	SetCartRAM(ram []byte) error
+
+	IsPAL() bool
 }
 
 func (emu *emuState) MakeSnapshot() []byte {
@@ -60,6 +62,10 @@ func (emu *emuState) SetCartRAM(ram []byte) error {
 	}
 	// TODO: better checks (e.g. real format, cart checksum, etc.)
 	return fmt.Errorf("ram size mismatch")
+}
+
+func (emu *emuState) IsPAL() bool {
+	return emu.VDP.TVType == tvPAL
 }
 
 // ReadSoundBuffer returns a 44100hz * 16bit * 2ch sound buffer.

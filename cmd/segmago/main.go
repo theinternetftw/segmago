@@ -105,6 +105,9 @@ func startEmu(filename string, window *platform.WindowState, emu segmago.Emulato
 	accuracyProtection := 1*time.Millisecond
 
 	frametimeGoal := 16.66*1000*1000*time.Nanosecond
+	if emu.IsPAL() {
+		frametimeGoal = 20*1000*1000*time.Nanosecond
+	}
 
 	snapshotMode := 'x'
 

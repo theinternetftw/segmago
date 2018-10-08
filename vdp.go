@@ -1,10 +1,19 @@
 package segmago
 
+type tvType int
+
+const (
+	tvNTSC tvType = 0
+	tvPAL         = 1
+)
+
 type vdp struct {
 	framebuffer         [256 * 240 * 4]byte
 	OnSecondControlByte bool
 	AddrReg             uint16
 	CodeReg             byte
+
+	TVType tvType
 
 	ModeHeight uint16
 
@@ -107,34 +116,71 @@ func (v *vdp) readDataPort() byte {
 }
 
 func (v *vdp) incVCounter() {
-	// TODO: fixups for PAL
-	switch v.ModeHeight {
-	case 192:
+	switch {
+
+	case v.ModeHeight == 192 && v.TVType == tvNTSC:
 		if v.VCounterFixupsThisFrame == 0 && v.VCounter == 0xda {
 			v.VCounterFixupsThisFrame++
 			v.VCounter = 0xd5
 		} else {
 			v.VCounter++
 		}
-	case 224:
+	case v.ModeHeight == 224 && v.TVType == tvNTSC:
 		if v.VCounterFixupsThisFrame == 0 && v.VCounter == 0xea {
 			v.VCounterFixupsThisFrame++
 			v.VCounter = 0xe5
 		} else {
 			v.VCounter++
 		}
+
+	case v.ModeHeight == 192 && v.TVType == tvPAL:
+		if v.VCounterFixupsThisFrame == 0 && v.VCounter == 0xf2 {
+			v.VCounterFixupsThisFrame++
+			v.VCounter = 0xba
+		} else {
+			v.VCounter++
+		}
+	case v.ModeHeight == 224 && v.TVType == tvPAL:
+		if v.VCounterFixupsThisFrame == 0 && v.VCounter == 0xff {
+			v.VCounterFixupsThisFrame++
+			v.VCounter = 0
+		} else if v.VCounterFixupsThisFrame == 1 && v.VCounter == 0x02 {
+			v.VCounterFixupsThisFrame++
+			v.VCounter = 0xca
+		} else {
+			v.VCounter++
+		}
+	case v.ModeHeight == 240 && v.TVType == tvPAL:
+		if v.VCounterFixupsThisFrame == 0 && v.VCounter == 0xff {
+			v.VCounterFixupsThisFrame++
+			v.VCounter = 0
+		} else if v.VCounterFixupsThisFrame == 1 && v.VCounter == 0x0a {
+			v.VCounterFixupsThisFrame++
+			v.VCounter = 0xd2
+		} else {
+			v.VCounter++
+		}
+
 	default:
 		errOut("incVCounter(): ModeHeight not implemented", v.ModeHeight)
 	}
 }
 
-func (v *vdp) atLastVCounter() bool {
+func (v *vdp) onePastLastVCounter() bool {
 	// TODO: fixups for PAL
-	switch v.ModeHeight {
-	case 192:
+	switch {
+	case v.ModeHeight == 192 && v.TVType == tvNTSC:
 		return v.VCounterFixupsThisFrame == 1 && v.VCounter == 0x00
-	case 224:
+	case v.ModeHeight == 224 && v.TVType == tvNTSC:
 		return v.VCounterFixupsThisFrame == 1 && v.VCounter == 0x00
+
+	case v.ModeHeight == 192 && v.TVType == tvPAL:
+		return v.VCounterFixupsThisFrame == 1 && v.VCounter == 0x00
+	case v.ModeHeight == 224 && v.TVType == tvPAL:
+		return v.VCounterFixupsThisFrame == 2 && v.VCounter == 0x00
+	case v.ModeHeight == 240 && v.TVType == tvPAL:
+		return v.VCounterFixupsThisFrame == 2 && v.VCounter == 0x00
+
 	default:
 		errOut("atLastVCounter(): ModeHeight not implemented", v.ModeHeight)
 		return false
@@ -170,6 +216,11 @@ type nameTableEntry struct {
 func (v *vdp) getNameTableEntry(tileX, tileY uint16) nameTableEntry {
 
 	baseAddr := v.SMSNameTableAddr
+	if v.ModeHeight != 192 {
+		baseAddr &^= 0x0800
+		baseAddr |= 0x0700
+	}
+
 	addr := baseAddr | (tileY << 6) | tileX<<1
 	rawEntry := uint16(v.VRAM[addr]) | uint16(v.VRAM[addr+1])<<8
 
@@ -417,6 +468,7 @@ func (v *vdp) renderScanline(y uint16) {
 }
 
 func (v *vdp) init() {
+	v.TVType = tvNTSC
 	v.ModeHeight = 192
 	v.RegM2 = true
 	v.RegM4 = true
@@ -432,25 +484,30 @@ func (v *vdp) runCycle() {
 	} else {
 		v.ScreenX += 2
 		if v.ScreenX == 342 {
+
 			if v.ScreenY < v.ModeHeight {
 				v.renderScanline(v.ScreenY)
 			}
+
 			v.ScreenX = 0
 			v.ScreenY++
 			v.incVCounter()
+
 			if v.ScreenY <= v.ModeHeight {
 				v.LineInterruptCounter--
 				if v.LineInterruptCounter == 0xff {
 					v.LineInterruptCounter = v.LineInterruptCounterSetReg
 					v.LineInterruptPending = true
 				}
-				if v.ScreenY == v.ModeHeight {
-					v.FrameInterruptPending = true
-				}
 			} else {
 				v.LineInterruptCounter = v.LineInterruptCounterSetReg
 			}
-			if v.atLastVCounter() {
+
+			if v.ScreenY == v.ModeHeight+1 {
+				v.FrameInterruptPending = true
+			}
+
+			if v.onePastLastVCounter() {
 				v.ScreenY = 0
 				v.VCounter = 0
 				v.VCounterFixupsThisFrame = 0
@@ -465,14 +522,18 @@ func (v *vdp) updateMode() {
 	m3, m2, m1 := v.RegM3, v.RegM2, v.RegM1
 	if !m3 && !m2 && !m1 {
 		v.ModeHeight = 192 // normal Mode 4
+	} else if !m3 && m2 && m1 {
+		v.ModeHeight = 224
 	} else if !m3 && m2 && !m1 {
 		v.ModeHeight = 192 // normal Mode 4
 	} else if m3 && !m2 && !m1 {
 		v.ModeHeight = 192 // normal Mode 4
+	} else if m3 && m2 && !m1 {
+		v.ModeHeight = 240 // TODO: set PAL?
 	} else if m3 && m2 && m1 {
 		v.ModeHeight = 192 // normal Mode 4
 	} else {
-		errOut("Unimplemented mode4 variant!", v.RegM1, v.RegM2, v.RegM3)
+		errOut("Unimplemented mode4 variant!", v.RegM3, v.RegM2, v.RegM1)
 	}
 }
 
@@ -571,11 +632,11 @@ func (v *vdp) readControlPort() byte {
 		v.FrameInterruptPending,
 		v.SpriteOverflow,
 		v.SpriteCollision,
-		true,
-		true,
-		true,
-		true,
-		true,
+		false,
+		false,
+		false,
+		false,
+		false,
 	)
 	v.OnSecondControlByte = false
 	v.LineInterruptPending = false

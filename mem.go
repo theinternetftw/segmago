@@ -7,6 +7,9 @@ type storage struct {
 	CartRAM         [32 * 1024]byte
 	CartRAMModified bool
 
+	IsCodemastersMapper bool
+	IsStdMapper         bool
+
 	CartRAMPagedIn bool
 	PageRAMBank    uint32
 
@@ -91,7 +94,7 @@ func (s *storage) wrapROMBankNum(bankNum byte) uint32 {
 
 func (s *storage) read(addr uint16) byte {
 	var val byte
-	if addr < 0x400 {
+	if !s.IsCodemastersMapper && addr < 0x400 {
 		val = s.rom[addr]
 	} else if addr < 0x4000 {
 		bank := s.Page0Bank
@@ -122,33 +125,45 @@ func (s *storage) read(addr uint16) byte {
 }
 
 func (s *storage) write(addr uint16, val byte) {
-	if addr < 0x8000 {
-		// rom
-	} else if addr < 0xc000 {
-		if s.CartRAMPagedIn {
-			bank := s.PageRAMBank
-			computedAddr := bank*0x4000 + uint32(addr-0x8000)
-			s.CartRAM[computedAddr] = val
-			s.CartRAMModified = true
-			//fmt.Println("CART RAM WRITE BANK", bank, "addr", addr, "computed", computedAddr, "val", val)
+	if s.IsStdMapper {
+		if addr < 0xc000 {
+			if s.CartRAMPagedIn {
+				bank := s.PageRAMBank
+				computedAddr := bank*0x4000 + uint32(addr-0x8000)
+				s.CartRAM[computedAddr] = val
+				s.CartRAMModified = true
+				//fmt.Println("CART RAM WRITE BANK", bank, "addr", addr, "computed", computedAddr, "val", val)
+			}
 		}
 	} else {
-		errOut(fmt.Sprintf("storage.write: passed non-rom addr 0x%04x", addr))
+		if addr == 0x0000 {
+			s.IsCodemastersMapper = true
+			s.Page0Bank = s.wrapROMBankNum(val)
+		} else if addr == 0x4000 {
+			s.IsCodemastersMapper = true
+			s.Page1Bank = s.wrapROMBankNum(val)
+		} else if addr == 0x8000 {
+			s.IsCodemastersMapper = true
+			s.Page2Bank = s.wrapROMBankNum(val)
+		}
 	}
 }
 
 func (s *storage) ctrlMapper(addr uint16, val byte) {
-	if addr == 0xfffc {
-		s.setPagingControlReg(val)
-	} else if addr == 0xfffd {
-		s.Page0Bank = s.wrapROMBankNum(val)
-		//fmt.Println("set bank0:", s.Page0Bank)
-	} else if addr == 0xfffe {
-		s.Page1Bank = s.wrapROMBankNum(val)
-		//fmt.Println("set bank1:", s.Page1Bank)
-	} else if addr == 0xffff {
-		s.Page2Bank = s.wrapROMBankNum(val)
-		//fmt.Println("set bank2:", s.Page2Bank)
+	if !s.IsCodemastersMapper {
+		s.IsStdMapper = true
+		if addr == 0xfffc {
+			s.setPagingControlReg(val)
+		} else if addr == 0xfffd {
+			s.Page0Bank = s.wrapROMBankNum(val)
+			//fmt.Println("set bank0:", s.Page0Bank)
+		} else if addr == 0xfffe {
+			s.Page1Bank = s.wrapROMBankNum(val)
+			//fmt.Println("set bank1:", s.Page1Bank)
+		} else if addr == 0xffff {
+			s.Page2Bank = s.wrapROMBankNum(val)
+			//fmt.Println("set bank2:", s.Page2Bank)
+		}
 	}
 }
 
