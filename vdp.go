@@ -39,9 +39,11 @@ type vdp struct {
 
 	SMSBackdropCplane byte
 
-	SpriteLineBuf [8]uint32
-	ColorRAM      [64]byte
-	GGColorLatch  byte
+	SpriteList [9]sprite // extra is used for overflow check
+	NumSprites byte
+
+	ColorRAM     [64]byte
+	GGColorLatch byte
 
 	BufferReg byte
 
@@ -262,8 +264,8 @@ func (v *vdp) ggGetRGB(ggCol uint16) (byte, byte, byte) {
 }
 
 type sprite struct {
-	x, y       uint16
-	patternNum uint16
+	X, Y       uint16
+	PatternNum uint16
 }
 
 func (v *vdp) getSpriteHeight() uint16 {
@@ -277,14 +279,14 @@ func (v *vdp) getSpriteHeight() uint16 {
 	return spriteHeight
 }
 
-func (v *vdp) getSpritesForLine(slist []sprite, y uint16) []sprite {
+func (v *vdp) parseSpritesForLine(y uint16) {
 	base := v.SMSSpriteAttrTableAddr
 
-	slist = slist[:0]
+	slist := v.SpriteList[:0]
 
 	spriteHeight := v.getSpriteHeight()
 
-	numSprites := 0
+	v.NumSprites = 0
 	for i := uint16(0); i < 64; i++ {
 		spriteY := uint16(v.VRAM[base+i]) + 1
 		if spriteY == 0xd1 && v.ModeHeight == 192 {
@@ -294,26 +296,24 @@ func (v *vdp) getSpritesForLine(slist []sprite, y uint16) []sprite {
 			spriteX := uint16(v.VRAM[base+0x80+i*2])
 			patternNum := uint16(v.VRAM[base+0x80+i*2+1])
 			slist = append(slist, sprite{
-				x:          spriteX,
-				y:          spriteY,
-				patternNum: patternNum,
+				X:          spriteX,
+				Y:          spriteY,
+				PatternNum: patternNum,
 			})
-			numSprites++
+			v.NumSprites++
 		}
-		if numSprites == 9 {
+		if v.NumSprites == 9 {
 			v.SpriteOverflow = true
-			numSprites = 8
+			v.NumSprites = 8
 			break
 		}
 	}
-
-	return slist[:numSprites]
 }
 
 func (v *vdp) getSpriteCplanes(sp sprite, x, y uint16) byte {
 	tileBase := v.SMSSpriteTileTableAddr
 
-	patternNum := sp.patternNum
+	patternNum := sp.PatternNum
 	if tileBase > 0 {
 		patternNum += 0x100
 	}
@@ -396,8 +396,16 @@ func (v *vdp) renderScanline(y uint16) {
 		}
 	}
 
-	spriteListStorage := [9]sprite{} // extra is used for overflow check
-	spriteList := v.getSpritesForLine(spriteListStorage[:], y)
+	numSprites := v.NumSprites
+	spriteList := [9]sprite{}
+	copy(spriteList[:], v.SpriteList[:])
+
+	if y < v.ModeHeight-1 {
+		v.parseSpritesForLine(y + 1)
+	} else {
+		v.NumSprites = 0
+	}
+
 	spriteHeight := v.getSpriteHeight()
 
 	cPlanes := [256]byte{}
@@ -405,14 +413,14 @@ func (v *vdp) renderScanline(y uint16) {
 	if v.DisplayEnable {
 		for x := uint16(0); x < 256; x++ {
 			spriteCplanes := byte(0)
-			for i := range spriteList {
-				spriteX := spriteList[i].x
+			for i := byte(0); i < numSprites; i++ {
+				spriteX := spriteList[i].X
 				if v.ShiftSpritesLeft {
 					spriteX -= 8
 				}
 				if x >= spriteX && x < spriteX+spriteHeight {
 					sprite := spriteList[i]
-					colX, colY := x-sprite.x, y-sprite.y
+					colX, colY := x-sprite.X, y-sprite.Y
 					cPlanes := v.getSpriteCplanes(sprite, colX, colY)
 
 					if spriteCplanes == 0 {
