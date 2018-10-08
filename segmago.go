@@ -31,7 +31,11 @@ type emuState struct {
 
 	IoDisabled bool
 
-	IsGameGear bool
+	IsGameGear            bool
+	GameGearExtDataReg    byte
+	GameGearExtDirReg     byte
+	GameGearSerialSendReg byte
+	GameGearSerialCtrlReg byte
 
 	Cycles uint32
 }
@@ -132,6 +136,10 @@ func newState(cart, bios []byte) *emuState {
 
 	state.SN76489.init()
 	state.VDP.init()
+
+	state.GameGearExtDataReg = 0x7f
+	state.GameGearExtDirReg = 0xff
+	state.GameGearSerialSendReg = 0x00
 
 	return &state
 }

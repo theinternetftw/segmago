@@ -211,23 +211,23 @@ func (emu *emuState) in(addr uint16) byte {
 					false,
 				)
 			case 1:
-				return 0x7f
+				return emu.GameGearExtDataReg
 			case 2:
-				return 0xff
+				return emu.GameGearExtDirReg
 			case 3:
-				return 0x00
+				return emu.GameGearSerialSendReg
 			case 4:
 				return 0xff
 			case 5:
-				return 0x00
+				return emu.GameGearSerialCtrlReg
 			case 6:
-				return emu.SN76489.StereoMixerReg
+				return 0xff // stereo reg is write only (0 or ff?)
 			default:
 				return 0xff
 			}
 		} else {
 			// val = 0xff // right for SMS2, SMS has weird bus stuff
-			val = 0 // more compatible?, some games try to "read" from mem ctrl port
+			val = 0xff // 0 more compatible?, some games try to "read" from mem ctrl port?
 		}
 	} else if addr < 0x80 {
 		if addr&1 == 0 {
@@ -271,7 +271,19 @@ func (emu *emuState) out(addr uint16, val byte) {
 	//fmt.Printf("got OUT: 0x%02x, 0x%02x\n", addr, val)
 	if addr < 0x40 {
 		if emu.IsGameGear && addr <= 6 {
-			if addr == 6 {
+			switch addr {
+			case 1:
+				emu.GameGearExtDataReg = val
+			case 2:
+				emu.GameGearExtDirReg = val
+			case 3:
+				emu.GameGearSerialSendReg = val
+			case 4:
+				// read only
+			case 5:
+				emu.GameGearSerialCtrlReg &^= 0xf8
+				emu.GameGearSerialCtrlReg |= (val & 0xf8)
+			case 6:
 				emu.SN76489.StereoMixerReg = val
 			}
 		} else if addr&1 == 0 {
