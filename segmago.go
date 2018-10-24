@@ -240,13 +240,13 @@ func (emu *emuState) readJoyReg1() byte {
 	)
 }
 
-var hitTilde = false
+var showDebugStatusLine = false
 
 func (emu *emuState) step() {
 	if emu.Input.Keys['`'] {
-		hitTilde = true
+		showDebugStatusLine = !showDebugStatusLine
 	}
-	if hitTilde {
+	if showDebugStatusLine {
 		fmt.Println(emu.CPU.debugStatusLine())
 	}
 	emu.CPU.Step()
