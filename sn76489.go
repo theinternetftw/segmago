@@ -1,7 +1,9 @@
 package segmago
 
+import "fmt"
+
 const (
-	amountToStore    = 512 * 16 * 4 // must be power of 2
+	amountToStore    = 16 * 512 * 4 // must be power of 2
 	samplesPerSecond = 44100
 
 	ntscClocksPerSecond = 3579545
@@ -90,60 +92,69 @@ func (s *sn76489) init() {
 	s.StereoMixerReg = 0xff
 }
 
+func (s *sn76489) genSample() {
+	if s.Clock == 0 {
+		for i := range s.Sounds {
+			s.runSoundCycle(&s.Sounds[i])
+		}
+
+		for i := range s.Sounds {
+			sound := &s.Sounds[i]
+			sample := int32(sound.Output * (15 - sound.Volume))
+			if s.StereoMixerReg>>uint32(i)&1 > 0 {
+				s.SumLeft += sample
+			}
+			if s.StereoMixerReg>>uint32(4+i)&1 > 0 {
+				s.SumRight += sample
+			}
+		}
+
+		s.SampleSumCount++
+		if s.SampleSumCount >= s.ClocksPerSample>>4 {
+
+			outLeft := float32(s.SumLeft)
+			outLeft /= 15.0 * float32(s.SampleSumCount*4) // 15 vol levels
+
+			outRight := float32(s.SumRight)
+			outRight /= 15.0 * float32(s.SampleSumCount*4) // 15 vol levels
+
+			s.SumLeft = 0
+			s.SumRight = 0
+			s.SampleSumCount = 0
+
+			// dc blocker to center waveform
+			correctedOutputLeft := outLeft - s.lastOutputLeft + 0.995*s.lastCorrectedOutputLeft
+			s.lastCorrectedOutputLeft = correctedOutputLeft
+			s.lastOutputLeft = outLeft
+			outLeft = correctedOutputLeft
+
+			// dc blocker to center waveform
+			correctedOutputRight := outRight - s.lastOutputRight + 0.995*s.lastCorrectedOutputRight
+			s.lastCorrectedOutputRight = correctedOutputRight
+			s.lastOutputRight = outRight
+			outRight = correctedOutputRight
+
+			sampleLeft := int16(outLeft * 32767.0)
+			sampleRight := int16(outRight * 32767.0)
+			s.buffer.write([]byte{
+				byte(sampleLeft & 0xff), byte(sampleLeft >> 8),
+				byte(sampleRight & 0xff), byte(sampleRight >> 8),
+			})
+		}
+	}
+	s.Clock = (s.Clock + 1) & 0x0f
+}
+
+var newBufFull = false
+
 func (s *sn76489) runCycle() {
 
 	if !s.buffer.full() {
-
-		if s.Clock == 0 {
-			for i := range s.Sounds {
-				s.runSoundCycle(&s.Sounds[i])
-			}
-
-			for i := range s.Sounds {
-				sound := &s.Sounds[i]
-				sample := int32(sound.Output * (15 - sound.Volume))
-				if s.StereoMixerReg>>uint32(i)&1 > 0 {
-					s.SumLeft += sample
-				}
-				if s.StereoMixerReg>>uint32(4+i)&1 > 0 {
-					s.SumRight += sample
-				}
-			}
-
-			s.SampleSumCount++
-			if s.SampleSumCount >= s.ClocksPerSample>>4 {
-
-				outLeft := float32(s.SumLeft)
-				outLeft /= 15.0 * float32(s.SampleSumCount*4) // 15 vol levels
-
-				outRight := float32(s.SumRight)
-				outRight /= 15.0 * float32(s.SampleSumCount*4) // 15 vol levels
-
-				s.SumLeft = 0
-				s.SumRight = 0
-				s.SampleSumCount = 0
-
-				// dc blocker to center waveform
-				correctedOutputLeft := outLeft - s.lastOutputLeft + 0.995*s.lastCorrectedOutputLeft
-				s.lastCorrectedOutputLeft = correctedOutputLeft
-				s.lastOutputLeft = outLeft
-				outLeft = correctedOutputLeft
-
-				// dc blocker to center waveform
-				correctedOutputRight := outRight - s.lastOutputRight + 0.995*s.lastCorrectedOutputRight
-				s.lastCorrectedOutputRight = correctedOutputRight
-				s.lastOutputRight = outRight
-				outRight = correctedOutputRight
-
-				sampleLeft := int16(outLeft * 32767.0)
-				sampleRight := int16(outRight * 32767.0)
-				s.buffer.write([]byte{
-					byte(sampleLeft & 0xff), byte(sampleLeft >> 8),
-					byte(sampleRight & 0xff), byte(sampleRight >> 8),
-				})
-			}
-		}
-		s.Clock = (s.Clock + 1) & 0x0f
+		s.genSample()
+		newBufFull = true
+	} else if newBufFull {
+		fmt.Println("sn buf full!")
+		newBufFull = false
 	}
 }
 

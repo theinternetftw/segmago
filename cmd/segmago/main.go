@@ -91,7 +91,7 @@ func startEmu(filename string, window *platform.WindowState, emu segmago.Emulato
 		}
 	}
 
-	audio, err := platform.OpenAudioBuffer(4, 4096, 44100, 16, 2)
+	audio, err := platform.OpenAudioBuffer(16, 512, 44100, 16, 2)
 	workingAudioBuffer := make([]byte, audio.BufferSize())
 	dieIf(err)
 
@@ -190,7 +190,13 @@ func startEmu(filename string, window *platform.WindowState, emu segmago.Emulato
 		bufferAvailable := audio.BufferAvailable()
 
 		audioBufSlice := workingAudioBuffer[:bufferAvailable]
-		audio.Write(emu.ReadSoundBuffer(audioBufSlice))
+		if frameCount & 0xff == 0 {
+			if len(audioBufSlice) != 0 {
+				//fmt.Println("audio buf size", len(audioBufSlice))
+			}
+		}
+		emu.ReadSoundBuffer(audioBufSlice)
+		audio.Write(audioBufSlice)
 
 		if emu.CartRAMModified() {
 			if time.Now().Sub(lastSaveTime) > 10*time.Second {
