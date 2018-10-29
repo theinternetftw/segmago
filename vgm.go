@@ -210,6 +210,8 @@ func NewVgmPlayer(vgm []byte) Emulator {
 	fmt.Println("loop #samples:", vp.Hdr.LoopNumSamples)
 	fmt.Println("rate:", vp.Hdr.TVRate)
 
+	vp.SamplesToWait = 22050 // TODO: fix the half-second-of-noise bug that requires this mitigation
+
 	vp.initTune(0)
 
 	vp.updateScreen()
