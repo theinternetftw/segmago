@@ -40,8 +40,19 @@ func main() {
 		dieIf(err)
 	}
 
+	fileMagic := ""
+	if len(cart) > 0 {
+		fileMagic = string(cart[:4])
+	}
+
+	isVGM := strings.HasSuffix(cartFilename, ".vgm") ||
+		strings.HasSuffix(cartFilename, ".vgz") ||
+		fileMagic == "Vgm "
+
 	var emu segmago.Emulator
-	if strings.HasSuffix(cartFilename, ".gg") {
+	if isVGM {
+		emu = segmago.NewVgmPlayer(cart)
+	} else if strings.HasSuffix(cartFilename, ".gg") {
 		bios = []byte{} // no bios in gg yet
 		emu = segmago.NewEmulatorGG(cart, bios)
 	} else {

@@ -1,7 +1,5 @@
 package segmago
 
-import "fmt"
-
 const (
 	amountToStore    = 16 * 512 * 4 // must be power of 2
 	samplesPerSecond = 44100
@@ -92,6 +90,17 @@ func (s *sn76489) init() {
 	s.StereoMixerReg = 0xff
 }
 
+func (s *sn76489) readSoundBuffer(toFill []byte) {
+	if int(s.buffer.size()) < len(toFill) {
+		//fmt.Println("audSize:", s.buffer.size(), "len(toFill)", len(toFill))
+	}
+	for int(s.buffer.size()) < len(toFill) {
+		// stretch sound to fill buffer to avoid click
+		s.genSample()
+	}
+	s.buffer.read(toFill)
+}
+
 func (s *sn76489) genSample() {
 	if s.Clock == 0 {
 		for i := range s.Sounds {
@@ -153,7 +162,7 @@ func (s *sn76489) runCycle() {
 		s.genSample()
 		newBufFull = true
 	} else if newBufFull {
-		fmt.Println("sn buf full!")
+		//fmt.Println("sn buf full!")
 		newBufFull = false
 	}
 }

@@ -475,8 +475,8 @@ func (v *vdp) renderScanline(y uint16) {
 
 }
 
-func (v *vdp) init() {
-	v.TVType = tvNTSC
+func (v *vdp) init(tvType tvType) {
+	v.TVType = tvType
 	v.ModeHeight = 192
 	v.RegM2 = true
 	v.RegM4 = true

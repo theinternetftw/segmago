@@ -71,14 +71,7 @@ func (emu *emuState) IsPAL() bool {
 // ReadSoundBuffer returns a 44100hz * 16bit * 2ch sound buffer.
 // A pre-sized buffer must be provided and will be assumed to be filled.
 func (emu *emuState) ReadSoundBuffer(toFill []byte) {
-	if int(emu.SN76489.buffer.size()) != len(toFill) {
-		//fmt.Println("audSize:", audSize, "len(toFill)", len(toFill))
-	}
-	for int(emu.SN76489.buffer.size()) < len(toFill) {
-		// stretch sound to fill buffer to avoid click
-		emu.SN76489.genSample()
-	}
-	emu.SN76489.buffer.read(toFill)
+	emu.SN76489.readSoundBuffer(toFill)
 }
 
 // Framebuffer returns the current state of the lcd screen

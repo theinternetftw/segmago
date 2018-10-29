@@ -135,7 +135,7 @@ func newState(cart, bios []byte) *emuState {
 	state.CPU.SP = 0xdfec
 
 	state.SN76489.init()
-	state.VDP.init()
+	state.VDP.init(tvNTSC)
 
 	state.GameGearExtDataReg = 0x7f
 	state.GameGearExtDirReg = 0xff
@@ -158,7 +158,7 @@ func checkCart(cart []byte) {
 		}
 	}
 	if hdrStart == 0 {
-		fmt.Println("bad cart start!")
+		fmt.Println("info: no cart hdr found")
 	}
 }
 
