@@ -74,11 +74,6 @@ func main() {
 
 func startEmu(filename string, window *platform.WindowState, emu segmago.Emulator) {
 
-	// FIXME: settings are for debug right now
-	lastFlipTime := time.Now()
-	lastSaveTime := time.Now()
-	lastInputPollTime := time.Now()
-
 	snapshotPrefix := filename + ".snapshot"
 
 	saveFilename := filename + ".sav"
@@ -113,7 +108,7 @@ func startEmu(filename string, window *platform.WindowState, emu segmago.Emulato
 	maxFDiff := time.Duration(0)
 	frameCount := 0
 
-	accuracyProtection := 1*time.Millisecond
+	accuracyProtection := 2*time.Millisecond
 
 	frametimeGoal := 16.66*1000*1000*time.Nanosecond
 	if emu.IsPAL() {
@@ -123,6 +118,11 @@ func startEmu(filename string, window *platform.WindowState, emu segmago.Emulato
 	snapshotMode := 'x'
 
 	newInput := segmago.Input{}
+
+	// FIXME: settings are for debug right now
+	lastFlipTime := time.Now()
+	lastSaveTime := time.Now()
+	lastInputPollTime := time.Now()
 
 	for {
 		now := time.Now()
