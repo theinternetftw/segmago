@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/theinternetftw/segmago"
 	"github.com/theinternetftw/segmago/profiling"
-	"github.com/theinternetftw/segmago/platform"
+	"github.com/theinternetftw/glimmer"
 
 	"golang.org/x/mobile/event/key"
 
@@ -67,12 +67,12 @@ func main() {
 	screenW := 256
 	screenH := 240
 
-	platform.InitDisplayLoop("segmago", screenW*2, screenH*2, screenW, screenH, func(sharedState *platform.WindowState) {
+	glimmer.InitDisplayLoop("segmago", screenW*2, screenH*2, screenW, screenH, func(sharedState *glimmer.WindowState) {
 		startEmu(gameName, sharedState, emu)
 	})
 }
 
-func startEmu(filename string, window *platform.WindowState, emu segmago.Emulator) {
+func startEmu(filename string, window *glimmer.WindowState, emu segmago.Emulator) {
 
 	snapshotPrefix := filename + ".snapshot"
 
@@ -97,7 +97,7 @@ func startEmu(filename string, window *platform.WindowState, emu segmago.Emulato
 		}
 	}
 
-	audio, err := platform.OpenAudioBuffer(16, 512, 44100, 16, 2)
+	audio, err := glimmer.OpenAudioBuffer(16, 512, 44100, 16, 2)
 	workingAudioBuffer := make([]byte, audio.BufferSize())
 	dieIf(err)
 
