@@ -186,6 +186,8 @@ func NewVgmPlayer(vgm []byte) Emulator {
 		hdr, data, err = parseVgm(vgm)
 	}
 
+	fmt.Printf("vgm version: %08x\n", hdr.Version)
+
 	if err != nil {
 		return NewErrEmu(fmt.Sprintf("vgm player error\n%s", err.Error()))
 	}
@@ -210,7 +212,9 @@ func NewVgmPlayer(vgm []byte) Emulator {
 	fmt.Println("loop #samples:", vp.Hdr.LoopNumSamples)
 	fmt.Println("rate:", vp.Hdr.TVRate)
 
-	vp.SamplesToWait = 22050 // TODO: fix the half-second-of-noise bug that requires this mitigation
+	// TODO: fix the half-second-of-noise bug that requires this mitigation
+	// NOTE: it's in the games too! initial state bug?
+	//vp.SamplesToWait = 44100
 
 	vp.initTune(0)
 
