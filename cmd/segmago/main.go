@@ -1,9 +1,9 @@
 package main
 
 import (
+	"github.com/theinternetftw/glimmer"
 	"github.com/theinternetftw/segmago"
 	"github.com/theinternetftw/segmago/profiling"
-	"github.com/theinternetftw/glimmer"
 
 	"golang.org/x/mobile/event/key"
 
@@ -97,7 +97,7 @@ func startEmu(filename string, window *glimmer.WindowState, emu segmago.Emulator
 		}
 	}
 
-	audio, err := glimmer.OpenAudioBuffer(16, 512, 44100, 16, 2)
+	audio, err := glimmer.OpenAudioBuffer(1, 8192, 44100, 16, 2)
 	workingAudioBuffer := make([]byte, audio.BufferSize())
 	dieIf(err)
 
@@ -108,11 +108,11 @@ func startEmu(filename string, window *glimmer.WindowState, emu segmago.Emulator
 	maxFDiff := time.Duration(0)
 	frameCount := 0
 
-	accuracyProtection := 2*time.Millisecond
+	accuracyProtection := 2 * time.Millisecond
 
-	frametimeGoal := 16.66*1000*1000*time.Nanosecond
+	frametimeGoal := 16.66 * 1000 * 1000 * time.Nanosecond
 	if emu.IsPAL() {
-		frametimeGoal = 20*1000*1000*time.Nanosecond
+		frametimeGoal = 20 * 1000 * 1000 * time.Nanosecond
 	}
 
 	snapshotMode := 'x'
@@ -137,7 +137,7 @@ func startEmu(filename string, window *glimmer.WindowState, emu segmago.Emulator
 			{
 				window.CopyKeyCharArray(newInput.Keys[:])
 
-				cid := func (c key.Code) bool {
+				cid := func(c key.Code) bool {
 					return window.CodeIsDown(c)
 				}
 
@@ -167,7 +167,7 @@ func startEmu(filename string, window *glimmer.WindowState, emu segmago.Emulator
 				snapshotMode = 'l'
 			}
 			if numDown > '0' && numDown <= '9' {
-				snapFilename := snapshotPrefix+string(numDown)
+				snapFilename := snapshotPrefix + string(numDown)
 				if snapshotMode == 'm' {
 					snapshotMode = 'x'
 					numDown = 'x'
@@ -201,7 +201,7 @@ func startEmu(filename string, window *glimmer.WindowState, emu segmago.Emulator
 		bufferAvailable := audio.BufferAvailable()
 
 		audioBufSlice := workingAudioBuffer[:bufferAvailable]
-		if frameCount & 0xff == 0 {
+		if frameCount&0xff == 0 {
 			if len(audioBufSlice) != 0 {
 				//fmt.Println("audio buf size", len(audioBufSlice))
 			}
@@ -232,7 +232,7 @@ func startEmu(filename string, window *glimmer.WindowState, emu segmago.Emulator
 			window.Mutex.Unlock()
 
 			frameCount++
-			if frameCount & 0xff == 0 {
+			if frameCount&0xff == 0 {
 				fmt.Printf("maxRTime %.4f, maxFTime %.4f ", maxRDiff.Seconds(), maxFDiff.Seconds())
 				fmt.Printf("accuracyProtection %.4f\n", accuracyProtection.Seconds())
 				maxRDiff = 0
@@ -264,7 +264,7 @@ func startEmu(filename string, window *glimmer.WindowState, emu segmago.Emulator
 			}
 
 			if maxSleep > accuracyProtection && fDiff > frametimeGoal {
-				if fDiff - frametimeGoal > accuracyProtection {
+				if fDiff-frametimeGoal > accuracyProtection {
 					accuracyProtection = fDiff - frametimeGoal
 				}
 			}
