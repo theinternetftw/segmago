@@ -5,8 +5,6 @@ import (
 	"github.com/theinternetftw/segmago"
 	"github.com/theinternetftw/segmago/profiling"
 
-	"golang.org/x/mobile/event/key"
-
 	"bytes"
 	"compress/gzip"
 	"fmt"
@@ -137,17 +135,17 @@ func startEmu(filename string, window *glimmer.WindowState, emu segmago.Emulator
 			{
 				window.CopyKeyCharArray(newInput.Keys[:])
 
-				cid := func(c key.Code) bool {
+				cid := func(c glimmer.KeyCode) bool {
 					return window.CodeIsDown(c)
 				}
 
-				newInput.Joypad1.Up = cid(key.CodeW)
-				newInput.Joypad1.Down = cid(key.CodeS)
-				newInput.Joypad1.Left = cid(key.CodeA)
-				newInput.Joypad1.Right = cid(key.CodeD)
-				newInput.Joypad1.A = cid(key.CodeJ)
-				newInput.Joypad1.B = cid(key.CodeK)
-				newInput.Joypad1.Start = cid(key.CodeY)
+				newInput.Joypad1.Up = cid(glimmer.CodeW)
+				newInput.Joypad1.Down = cid(glimmer.CodeS)
+				newInput.Joypad1.Left = cid(glimmer.CodeA)
+				newInput.Joypad1.Right = cid(glimmer.CodeD)
+				newInput.Joypad1.A = cid(glimmer.CodeJ)
+				newInput.Joypad1.B = cid(glimmer.CodeK)
+				newInput.Joypad1.Start = cid(glimmer.CodeY)
 			}
 			window.Mutex.Unlock()
 
