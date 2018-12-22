@@ -39,7 +39,12 @@ type vgmPlayer struct {
 
 	LastFlipCycles uint64
 	Cycles         uint64
+
+	devMode bool
 }
+
+func (vp *vgmPlayer) InDevMode() bool   { return vp.devMode }
+func (vp *vgmPlayer) SetDevMode(b bool) { vp.devMode = b }
 
 func (vp *vgmPlayer) IsPAL() bool           { return false }
 func (vp *vgmPlayer) GetCartRAM() []byte    { return nil }
@@ -163,9 +168,11 @@ func hasVgmMagic(vgm []byte) bool {
 }
 
 // NewVgmPlayer creates an vgmPlayer session
-func NewVgmPlayer(vgm []byte) Emulator {
+func NewVgmPlayer(vgm []byte, devMode bool) Emulator {
 
-	fmt.Println("VGM TIME!")
+	if devMode {
+		fmt.Println("VGM TIME!")
+	}
 
 	var hdr vgmHeader
 	var data []byte
@@ -186,7 +193,9 @@ func NewVgmPlayer(vgm []byte) Emulator {
 		hdr, data, err = parseVgm(vgm)
 	}
 
-	fmt.Printf("vgm version: %08x\n", hdr.Version)
+	if devMode {
+		fmt.Printf("vgm version: %08x\n", hdr.Version)
+	}
 
 	if err != nil {
 		return NewErrEmu(fmt.Sprintf("vgm player error\n%s", err.Error()))
@@ -196,21 +205,26 @@ func NewVgmPlayer(vgm []byte) Emulator {
 		Hdr:       hdr,
 		CmdStream: data,
 		NumSongs:  1,
+		devMode:   devMode,
 	}
 	if vp.Hdr.GD3Offset != 0 {
 		if gd3, err := parseGd3(vgm[vp.Hdr.GD3Offset:]); err == nil {
 			vp.GD3 = gd3
 		} else {
-			fmt.Println("gd3 err:", err)
+			if devMode {
+				fmt.Println("gd3 err:", err)
+			}
 		}
 	}
 	vp.SN76489.init()
 
 	vp.DbgTerminal = dbgTerminal{w: 256, h: 240, screen: vp.DbgScreen[:]}
 
-	fmt.Println("loop offset:", vp.Hdr.LoopOffset)
-	fmt.Println("loop #samples:", vp.Hdr.LoopNumSamples)
-	fmt.Println("rate:", vp.Hdr.TVRate)
+	if devMode {
+		fmt.Println("loop offset:", vp.Hdr.LoopOffset)
+		fmt.Println("loop #samples:", vp.Hdr.LoopNumSamples)
+		fmt.Println("rate:", vp.Hdr.TVRate)
+	}
 
 	// TODO: fix the half-second-of-noise bug that requires this mitigation
 	// NOTE: it's in the games too! initial state bug?

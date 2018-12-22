@@ -22,6 +22,9 @@ func main() {
 	assert(numArgs == 2 || numArgs == 3, "usage: ./segmago ROM_FILENAME [BIOS_FILENAME]")
 	cartFilename := os.Args[1]
 
+	// TODO: config file instead
+	devMode := fileExists("devmode")
+
 	var cart []byte
 	if cartFilename != "null" {
 		var err error
@@ -49,12 +52,12 @@ func main() {
 
 	var emu segmago.Emulator
 	if isVGM {
-		emu = segmago.NewVgmPlayer(cart)
+		emu = segmago.NewVgmPlayer(cart, devMode)
 	} else if strings.HasSuffix(cartFilename, ".gg") {
 		bios = []byte{} // no bios in gg yet
-		emu = segmago.NewEmulatorGG(cart, bios)
+		emu = segmago.NewEmulatorGG(cart, bios, devMode)
 	} else {
-		emu = segmago.NewEmulatorSMS(cart, bios)
+		emu = segmago.NewEmulatorSMS(cart, bios, devMode)
 	}
 
 	gameName := cartFilename
@@ -68,6 +71,11 @@ func main() {
 	glimmer.InitDisplayLoop("segmago", screenW*2, screenH*2, screenW, screenH, func(sharedState *glimmer.WindowState) {
 		startEmu(gameName, sharedState, emu)
 	})
+}
+
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return !os.IsNotExist(err)
 }
 
 func startEmu(filename string, window *glimmer.WindowState, emu segmago.Emulator) {
@@ -231,8 +239,10 @@ func startEmu(filename string, window *glimmer.WindowState, emu segmago.Emulator
 
 			frameCount++
 			if frameCount&0xff == 0 {
-				fmt.Printf("maxRTime %.4f, maxFTime %.4f ", maxRDiff.Seconds(), maxFDiff.Seconds())
-				fmt.Printf("accuracyProtection %.4f\n", accuracyProtection.Seconds())
+				if emu.InDevMode() {
+					fmt.Printf("maxRTime %.4f, maxFTime %.4f ", maxRDiff.Seconds(), maxFDiff.Seconds())
+					fmt.Printf("accuracyProtection %.4f\n", accuracyProtection.Seconds())
+				}
 				maxRDiff = 0
 				maxFDiff = 0
 			}

@@ -38,6 +38,17 @@ type emuState struct {
 	GameGearSerialCtrlReg byte
 
 	Cycles uint32
+
+	devMode bool
+}
+
+func (emu *emuState) InDevMode() bool   { return emu.devMode }
+func (emu *emuState) SetDevMode(b bool) { emu.devMode = b }
+
+func (emu *emuState) devPrintln(args ...interface{}) {
+	if emu.devMode {
+		fmt.Println(args...)
+	}
 }
 
 func (emu *emuState) setMemControlReg(val byte) {
@@ -45,22 +56,22 @@ func (emu *emuState) setMemControlReg(val byte) {
 		// TODO: support enabling the tiny bios in the first k?
 	} else {
 		if val&0x40 == 0 {
-			fmt.Println("set to cart storage")
+			emu.devPrintln("set to cart storage")
 			emu.Mem.selectedMem = &emu.Mem.CartStorage
 		} else if val&0x08 == 0 {
-			fmt.Println("set to bios storage")
+			emu.devPrintln("set to bios storage")
 			emu.Mem.selectedMem = &emu.Mem.BIOSStorage
 		} else {
-			fmt.Println("set to null storage")
+			emu.devPrintln("set to null storage")
 			emu.Mem.selectedMem = &emu.Mem.NullStorage
 		}
 
 		if val&0x04 == 0 {
 			emu.IoDisabled = false
-			fmt.Println("IO Enabled")
+			emu.devPrintln("IO Enabled")
 		} else {
 			emu.IoDisabled = true
-			fmt.Println("IO Disabled")
+			emu.devPrintln("IO Disabled")
 		}
 	}
 }
@@ -108,11 +119,13 @@ func (emu *emuState) setIOControlReg(val byte) {
 	emu.TRAInOutputMode = !TRAInInputMode
 }
 
-func newState(cart, bios []byte) *emuState {
+func newState(cart, bios []byte, devMode bool) *emuState {
 
 	// strip a header that is only sometimes seen...
 	if len(cart)&0x3fff == 512 {
-		fmt.Println("found added header, stripping...")
+		if devMode {
+			fmt.Println("found added header, stripping...")
+		}
 		cart = cart[512:]
 	}
 
@@ -140,6 +153,8 @@ func newState(cart, bios []byte) *emuState {
 	state.GameGearExtDataReg = 0x7f
 	state.GameGearExtDirReg = 0xff
 	state.GameGearSerialSendReg = 0x00
+
+	state.devMode = devMode
 
 	return &state
 }

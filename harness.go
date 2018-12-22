@@ -11,7 +11,7 @@ import (
 // RunZEXTEST emulates just enough of cpm
 // to run a comprehensive z80 test
 func RunZEXTEST(cart []byte) {
-	state := newState(cart, []byte{})
+	state := newState(cart, []byte{}, false)
 
 	// no surprises
 	state.VDP.LineInterruptEnable = false
@@ -416,7 +416,7 @@ func isIgnorableTest(test *suiteTest) bool {
 
 // RunTestSuite parses the test input and expected output, then runs all tests found
 func RunTestSuite(input []byte, expected []byte) {
-	state := newState([]byte{}, []byte{})
+	state := newState([]byte{}, []byte{}, false)
 
 	// no surprises
 	state.VDP.LineInterruptEnable = false

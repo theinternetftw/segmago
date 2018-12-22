@@ -20,6 +20,9 @@ type Emulator interface {
 	SetCartRAM(ram []byte) error
 
 	IsPAL() bool
+
+	InDevMode() bool
+	SetDevMode(b bool)
 }
 
 func (emu *emuState) MakeSnapshot() []byte {
@@ -31,13 +34,13 @@ func (emu *emuState) LoadSnapshot(snapBytes []byte) (Emulator, error) {
 }
 
 // NewEmulatorSMS creates a Sega Master System emulation session
-func NewEmulatorSMS(cart, bios []byte) Emulator {
-	return newState(cart, bios)
+func NewEmulatorSMS(cart, bios []byte, devMode bool) Emulator {
+	return newState(cart, bios, devMode)
 }
 
 // NewEmulatorGG creates a Game Gear emulation session
-func NewEmulatorGG(cart, bios []byte) Emulator {
-	state := newState(cart, bios)
+func NewEmulatorGG(cart, bios []byte, devMode bool) Emulator {
+	state := newState(cart, bios, devMode)
 	state.IsGameGear = true
 	return state
 }
