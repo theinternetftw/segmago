@@ -103,30 +103,19 @@ func startEmu(filename string, window *glimmer.WindowState, emu segmago.Emulator
 		}
 	}
 
-	audio, err := glimmer.OpenAudioBuffer(1, 8192, 44100, 16, 2)
+	audio, err := glimmer.OpenAudioBuffer(2, 8192, 44100, 16, 2)
 	workingAudioBuffer := make([]byte, audio.BufferSize())
 	dieIf(err)
 
-	timer := time.NewTimer(0)
-	<-timer.C
-
-	maxRDiff := time.Duration(0)
-	maxFDiff := time.Duration(0)
-	frameCount := 0
-
-	accuracyProtection := 2 * time.Millisecond
-
-	frametimeGoal := 16.66 * 1000 * 1000 * time.Nanosecond
+	frameTimer := glimmer.MakeFrameTimer(1.0 / 60.0)
 	if emu.IsPAL() {
-		frametimeGoal = 20 * 1000 * 1000 * time.Nanosecond
+		frameTimer = glimmer.MakeFrameTimer(1.0 / 50.0)
 	}
 
 	snapshotMode := 'x'
 
 	newInput := segmago.Input{}
 
-	// FIXME: settings are for debug right now
-	lastFlipTime := time.Now()
 	lastSaveTime := time.Now()
 	lastInputPollTime := time.Now()
 
@@ -139,7 +128,7 @@ func startEmu(filename string, window *glimmer.WindowState, emu segmago.Emulator
 
 			newInput = segmago.Input{}
 
-			window.Mutex.Lock()
+			window.InputMutex.Lock()
 			{
 				window.CopyKeyCharArray(newInput.Keys[:])
 
@@ -155,7 +144,7 @@ func startEmu(filename string, window *glimmer.WindowState, emu segmago.Emulator
 				newInput.Joypad1.B = cid(glimmer.CodeK)
 				newInput.Joypad1.Start = cid(glimmer.CodeY)
 			}
-			window.Mutex.Unlock()
+			window.InputMutex.Unlock()
 
 			lastInputPollTime = time.Now()
 
@@ -207,11 +196,13 @@ func startEmu(filename string, window *glimmer.WindowState, emu segmago.Emulator
 		bufferAvailable := audio.BufferAvailable()
 
 		audioBufSlice := workingAudioBuffer[:bufferAvailable]
+		/*
 		if frameCount&0xff == 0 {
 			if len(audioBufSlice) != 0 {
-				//fmt.Println("audio buf size", len(audioBufSlice))
+				fmt.Println("audio buf size", len(audioBufSlice))
 			}
 		}
+		*/
 		emu.ReadSoundBuffer(audioBufSlice)
 		audio.Write(audioBufSlice)
 
@@ -232,52 +223,16 @@ func startEmu(filename string, window *glimmer.WindowState, emu segmago.Emulator
 		}
 
 		if emu.FlipRequested() {
-			window.Mutex.Lock()
+			window.RenderMutex.Lock()
 			copy(window.Pix, emu.Framebuffer())
 			window.RequestDraw()
-			window.Mutex.Unlock()
+			window.RenderMutex.Unlock()
 
-			frameCount++
-			if frameCount&0xff == 0 {
-				if emu.InDevMode() {
-					fmt.Printf("maxRTime %.4f, maxFTime %.4f ", maxRDiff.Seconds(), maxFDiff.Seconds())
-					fmt.Printf("accuracyProtection %.4f\n", accuracyProtection.Seconds())
-				}
-				maxRDiff = 0
-				maxFDiff = 0
+			frameTimer.WaitForFrametime()
+
+			if emu.InDevMode() {
+				frameTimer.PrintStatsEveryXFrames(60*5)
 			}
-
-			rDiff := time.Now().Sub(lastFlipTime)
-			maxSleep := frametimeGoal - accuracyProtection
-			toSleep := maxSleep - rDiff
-			if toSleep > accuracyProtection {
-				timer.Reset(toSleep)
-				<-timer.C
-			} else {
-				accuracyProtection /= 2
-			}
-
-			waitEnds := lastFlipTime.Add(frametimeGoal)
-			for waitEnds.Sub(time.Now()) > 0 {
-				// spin
-			}
-
-			if rDiff > maxRDiff {
-				maxRDiff = rDiff
-			}
-
-			fDiff := time.Now().Sub(lastFlipTime)
-			if fDiff > maxFDiff {
-				maxFDiff = fDiff
-			}
-
-			if maxSleep > accuracyProtection && fDiff > frametimeGoal {
-				if fDiff-frametimeGoal > accuracyProtection {
-					accuracyProtection = fDiff - frametimeGoal
-				}
-			}
-
-			lastFlipTime = time.Now()
 		}
 	}
 }
