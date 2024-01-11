@@ -68,8 +68,15 @@ func main() {
 	screenW := 256
 	screenH := 240
 
-	glimmer.InitDisplayLoop("segmago", screenW*2, screenH*2, screenW, screenH, func(sharedState *glimmer.WindowState) {
-		startEmu(gameName, sharedState, emu)
+	glimmer.InitDisplayLoop(glimmer.InitDisplayLoopOptions{
+		WindowTitle:  "segmago",
+		WindowWidth:  screenW * 2,
+		WindowHeight: screenH * 2,
+		RenderWidth:  screenW,
+		RenderHeight: screenH,
+		InitCallback: func(sharedState *glimmer.WindowState) {
+			startEmu(gameName, sharedState, emu)
+		},
 	})
 }
 
@@ -103,14 +110,17 @@ func startEmu(filename string, window *glimmer.WindowState, emu segmago.Emulator
 		}
 	}
 
-	audio, err := glimmer.OpenAudioBuffer(2, 8192, 44100, 16, 2)
-	workingAudioBuffer := make([]byte, audio.BufferSize())
-	dieIf(err)
+	audio, audioErr := glimmer.OpenAudioBuffer(glimmer.OpenAudioBufferOptions{
+		OutputBufDuration: 25 * time.Millisecond,
+		SamplesPerSecond:  44100,
+		BitsPerSample:     16,
+		ChannelCount:      2,
+	})
+	dieIf(audioErr)
+	workingAudioBuffer := make([]byte, audio.GetPrevCallbackReadLen())
+	audioToGen := audio.GetPrevCallbackReadLen()
 
-	frameTimer := glimmer.MakeFrameTimer(1.0 / 60.0)
-	if emu.IsPAL() {
-		frameTimer = glimmer.MakeFrameTimer(1.0 / 50.0)
-	}
+	frameTimer := glimmer.MakeFrameTimer()
 
 	snapshotMode := 'x'
 
@@ -136,13 +146,13 @@ func startEmu(filename string, window *glimmer.WindowState, emu segmago.Emulator
 					return window.CodeIsDown(c)
 				}
 
-				newInput.Joypad1.Up = cid(glimmer.CodeW)
-				newInput.Joypad1.Down = cid(glimmer.CodeS)
-				newInput.Joypad1.Left = cid(glimmer.CodeA)
-				newInput.Joypad1.Right = cid(glimmer.CodeD)
-				newInput.Joypad1.A = cid(glimmer.CodeJ)
-				newInput.Joypad1.B = cid(glimmer.CodeK)
-				newInput.Joypad1.Start = cid(glimmer.CodeY)
+				newInput.Joypad1.Up = cid(glimmer.KeyCodeW)
+				newInput.Joypad1.Down = cid(glimmer.KeyCodeS)
+				newInput.Joypad1.Left = cid(glimmer.KeyCodeA)
+				newInput.Joypad1.Right = cid(glimmer.KeyCodeD)
+				newInput.Joypad1.A = cid(glimmer.KeyCodeJ)
+				newInput.Joypad1.B = cid(glimmer.KeyCodeK)
+				newInput.Joypad1.Start = cid(glimmer.KeyCodeY)
 			}
 			window.InputMutex.Unlock()
 
@@ -193,18 +203,14 @@ func startEmu(filename string, window *glimmer.WindowState, emu segmago.Emulator
 
 		emu.Step()
 
-		bufferAvailable := audio.BufferAvailable()
-
-		audioBufSlice := workingAudioBuffer[:bufferAvailable]
-		/*
-		if frameCount&0xff == 0 {
-			if len(audioBufSlice) != 0 {
-				fmt.Println("audio buf size", len(audioBufSlice))
+		if emu.GetSoundBufferUsed() >= audioToGen {
+			if cap(workingAudioBuffer) < audioToGen {
+				workingAudioBuffer = make([]byte, audioToGen)
 			}
+			workingAudioBuffer = workingAudioBuffer[:audioToGen]
+			emu.ReadSoundBuffer(workingAudioBuffer)
+			audio.Write(workingAudioBuffer)
 		}
-		*/
-		emu.ReadSoundBuffer(audioBufSlice)
-		audio.Write(audioBufSlice)
 
 		if emu.CartRAMModified() {
 			if time.Now().Sub(lastSaveTime) > 10*time.Second {
@@ -225,13 +231,12 @@ func startEmu(filename string, window *glimmer.WindowState, emu segmago.Emulator
 		if emu.FlipRequested() {
 			window.RenderMutex.Lock()
 			copy(window.Pix, emu.Framebuffer())
-			window.RequestDraw()
 			window.RenderMutex.Unlock()
 
-			frameTimer.WaitForFrametime()
+			audio.WaitForPlaybackIfAhead()
 
 			if emu.InDevMode() {
-				frameTimer.PrintStatsEveryXFrames(60*5)
+				frameTimer.PrintStatsEveryXFrames(60 * 5)
 			}
 		}
 	}

@@ -406,6 +406,10 @@ func (vp *vgmPlayer) ReadSoundBuffer(toFill []byte) {
 	}
 }
 
+func (vp *vgmPlayer) GetSoundBufferUsed() int {
+	return int(vp.SN76489.buffer.size())
+}
+
 func (vp *vgmPlayer) Framebuffer() []byte {
 	return vp.DbgScreen[:]
 }

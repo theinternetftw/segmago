@@ -11,6 +11,7 @@ type Emulator interface {
 
 	SetInput(input Input)
 	ReadSoundBuffer([]byte)
+	GetSoundBufferUsed() int
 
 	MakeSnapshot() []byte
 	LoadSnapshot([]byte) (Emulator, error)
@@ -75,6 +76,10 @@ func (emu *emuState) IsPAL() bool {
 // A pre-sized buffer must be provided and will be assumed to be filled.
 func (emu *emuState) ReadSoundBuffer(toFill []byte) {
 	emu.SN76489.readSoundBuffer(toFill)
+}
+
+func (emu *emuState) GetSoundBufferUsed() int {
+	return int(emu.SN76489.buffer.size())
 }
 
 // Framebuffer returns the current state of the lcd screen
