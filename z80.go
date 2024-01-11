@@ -83,10 +83,8 @@ func (z *z80) handleInterrupts() {
 func (z *z80) getSignFlag() bool { return z.F&0x80 > 0 }
 func (z *z80) getZeroFlag() bool { return z.F&0x40 > 0 }
 
-//
 func (z *z80) getHalfCarryFlag() bool { return z.F&0x10 > 0 }
 
-//
 func (z *z80) getParityOverflowFlag() bool { return z.F&0x04 > 0 }
 func (z *z80) getSubFlag() bool            { return z.F&0x02 > 0 }
 func (z *z80) getCarryFlag() bool          { return z.F&0x01 > 0 }

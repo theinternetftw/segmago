@@ -1,10 +1,12 @@
 package main
 
-import "github.com/theinternetftw/segmago"
+import (
+	"fmt"
+	"io/ioutil"
+	"os"
 
-import "fmt"
-import "io/ioutil"
-import "os"
+	"github.com/theinternetftw/segmago"
+)
 
 func main() {
 
